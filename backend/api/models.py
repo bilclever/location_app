@@ -309,13 +309,13 @@ class Appartement(models.Model):
     loyer_mensuel = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        verbose_name="Loyer mensuel (€)",
+        verbose_name="Loyer mensuel (CFA)",
         validators=[MinValueValidator(Decimal('0.01'))]
     )
     caution = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        verbose_name="Caution (€)",
+        verbose_name="Caution",
         default=0,
         validators=[MinValueValidator(0)]
     )

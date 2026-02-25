@@ -29,8 +29,6 @@ const AppartementPage = () => {
     <div className="page listing">
       <section className="section section-surface">
         <div className="container">
-          
-
           <AppartementFilters filters={filters} onFilterChange={handleFilterChange} />
 
           {isLoading && <LoadingSpinner fullPage />}

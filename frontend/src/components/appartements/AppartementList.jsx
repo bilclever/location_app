@@ -29,7 +29,7 @@ const AppartementList = ({ appartements, isLoading, error }) => {
   }
 
   return (
-    <div className="appartements-grid">
+    <div className="grid grid-4 gap-4">
       {appartements.map(appartement => (
         <AppartementCard key={appartement.id} appartement={appartement} />
       ))}

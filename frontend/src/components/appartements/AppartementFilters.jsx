@@ -3,7 +3,6 @@ import { VILLES, NB_PIECES, PRIX_MAX } from '../../utils/constants';
 
 const AppartementFilters = ({ filters, onFilterChange }) => {
   const [localFilters, setLocalFilters] = useState(filters);
-  const [isOpen, setIsOpen] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -22,21 +21,9 @@ const AppartementFilters = ({ filters, onFilterChange }) => {
   };
 
   return (
-    <div className={`filters filters-compact ${isOpen ? 'filters-open' : ''}`}>
-      <div className="filters-head">
-        <button
-          type="button"
-          className="btn btn-outline btn-sm filters-toggle"
-          onClick={() => setIsOpen(prev => !prev)}
-          aria-expanded={isOpen}
-          aria-controls="filters-body"
-        >
-          {isOpen ? 'Masquer les filtres' : 'Afficher les filtres'}
-        </button>
-      </div>
+    <div className={`filters filters-desktop`}>
       <form onSubmit={handleSubmit}>
-        <div id="filters-body" className="filters-body">
-          <div className="filters-grid">
+        <div className="filters-grid">
           <div className="form-group">
             <label htmlFor="search" className="form-label">
               Rechercher
@@ -107,7 +94,7 @@ const AppartementFilters = ({ filters, onFilterChange }) => {
 
           <div className="form-group">
             <label htmlFor="loyer_max" className="form-label">
-              Loyer max (€)
+              Loyer max (CFA)
             </label>
             <select
               id="loyer_max"
@@ -118,7 +105,7 @@ const AppartementFilters = ({ filters, onFilterChange }) => {
             >
               <option value="">Tous</option>
               {PRIX_MAX.map(prix => (
-                <option key={prix} value={prix}>{prix} €</option>
+                <option key={prix} value={prix}>{prix} CFA</option>
               ))}
             </select>
           </div>
@@ -130,7 +117,6 @@ const AppartementFilters = ({ filters, onFilterChange }) => {
             <button type="button" className="btn btn-outline" onClick={handleReset}>
               Réinitialiser
             </button>
-          </div>
           </div>
         </div>
       </form>

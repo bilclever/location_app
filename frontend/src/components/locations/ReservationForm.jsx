@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCreateLocation } from '../../hooks/useLocations';
+import { useAuth } from '../../hooks/useAuth';
 import { appartementService } from '../../services/appartements';
 import { validators } from '../../utils/validators';
 import { formatters } from '../../utils/formatters';
@@ -8,6 +9,7 @@ import toast from 'react-hot-toast';
 
 const ReservationForm = ({ appartementId, appartement }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const createMutation = useCreateLocation();
   
   const [formData, setFormData] = useState({
@@ -24,14 +26,22 @@ const ReservationForm = ({ appartementId, appartement }) => {
   const [disponibilite, setDisponibilite] = useState(null);
   const [total, setTotal] = useState(null);
 
+  // Pré-remplir avec les données de l'utilisateur connecté
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
-    setFormData(prev => ({
-      ...prev,
-      date_debut: today,
-      date_fin: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    }));
-  }, []);
+    const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        nom_locataire: `${user.prenom || ''} ${user.nom || ''}`.trim() || user.username,
+        email_locataire: user.email || '',
+        telephone_locataire: user.telephone || '',
+        date_debut: today,
+        date_fin: nextWeek,
+      }));
+    }
+  }, [user]);
 
   useEffect(() => {
     if (formData.date_debut && formData.date_fin && appartement) {
@@ -82,18 +92,7 @@ const ReservationForm = ({ appartementId, appartement }) => {
   const validate = () => {
     const newErrors = {};
 
-    if (!validators.required(formData.nom_locataire)) {
-      newErrors.nom_locataire = 'Nom requis';
-    }
-
-    if (!validators.email(formData.email_locataire)) {
-      newErrors.email_locataire = 'Email invalide';
-    }
-
-    if (!validators.phone(formData.telephone_locataire)) {
-      newErrors.telephone_locataire = 'Téléphone invalide';
-    }
-
+    // Les informations utilisateur sont automatiquement remplies, on valide juste les dates
     if (!validators.dateRange(formData.date_debut, formData.date_fin)) {
       newErrors.date_fin = 'La date de fin doit être postérieure à la date de début';
     }
@@ -140,61 +139,6 @@ const ReservationForm = ({ appartementId, appartement }) => {
 
   return (
     <form onSubmit={handleSubmit}>
-      <div className="form-group">
-        <label htmlFor="nom_locataire" className="form-label">
-          Nom complet *
-        </label>
-        <input
-          type="text"
-          id="nom_locataire"
-          name="nom_locataire"
-          className={`form-control ${errors.nom_locataire ? 'error' : ''}`}
-          value={formData.nom_locataire}
-          onChange={handleChange}
-          required
-        />
-        {errors.nom_locataire && (
-          <div className="form-error">{errors.nom_locataire}</div>
-        )}
-      </div>
-
-      <div className="form-group">
-        <label htmlFor="email_locataire" className="form-label">
-          Email *
-        </label>
-        <input
-          type="email"
-          id="email_locataire"
-          name="email_locataire"
-          className={`form-control ${errors.email_locataire ? 'error' : ''}`}
-          value={formData.email_locataire}
-          onChange={handleChange}
-          required
-        />
-        {errors.email_locataire && (
-          <div className="form-error">{errors.email_locataire}</div>
-        )}
-      </div>
-
-      <div className="form-group">
-        <label htmlFor="telephone_locataire" className="form-label">
-          Téléphone *
-        </label>
-        <input
-          type="tel"
-          id="telephone_locataire"
-          name="telephone_locataire"
-          className={`form-control ${errors.telephone_locataire ? 'error' : ''}`}
-          value={formData.telephone_locataire}
-          onChange={handleChange}
-          placeholder="01 23 45 67 89"
-          required
-        />
-        {errors.telephone_locataire && (
-          <div className="form-error">{errors.telephone_locataire}</div>
-        )}
-      </div>
-
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
         <div className="form-group">
           <label htmlFor="date_debut" className="form-label">

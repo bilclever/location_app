@@ -49,9 +49,24 @@ const AppartementDetailPage = () => {
       <section className="section section-surface">
         <div className="container">
           <div style={{ marginBottom: '1rem' }}>
-            <Link to="/appartements" className="btn btn-outline btn-sm">
-              ← Retour
-            </Link>
+            <button
+              onClick={() => navigate(-1)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '0.5rem',
+                fontSize: '1.5rem',
+                color: '#666',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.5rem',
+                marginTop: '-0.5rem',
+              }}
+              title="Retour"
+            >
+              ← <span>Retour</span>
+            </button>
           </div>
 
           <div className="appartement-details">

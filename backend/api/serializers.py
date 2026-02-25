@@ -11,7 +11,6 @@ import re
 from django.utils import timezone
 
 
-# ========== SÉRIALISEURS UTILISATEURS ==========
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """

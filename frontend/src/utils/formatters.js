@@ -3,10 +3,12 @@ import { fr } from 'date-fns/locale';
 
 export const formatters = {
   price(amount) {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
+    const formattedAmount = new Intl.NumberFormat('fr-FR', {
+      style: 'decimal',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amount);
+    return `${formattedAmount} CFA`;
   },
 
   date(date, pattern = 'dd MMMM yyyy') {

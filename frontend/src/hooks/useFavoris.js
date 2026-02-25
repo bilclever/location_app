@@ -10,20 +10,15 @@ export const useFavoris = () => {
       try {
         const data = await favorisService.getAll();
         
-        // Gérer différents formats de réponse
-        const favorisArray = Array.isArray(data) ? data : data.results || [];
+        // L'API retourne un objet paginé avec results contenant les appartements
+        const favorisArray = data?.results && Array.isArray(data.results) ? data.results : [];
         
         if (favorisArray.length === 0) {
           return [];
         }
         
-        // Les favoris contiennent un objet appartement, pas directement les champs
-        return favorisArray.map(favori => {
-          if (favori.appartement) {
-            return adapters.appartementList(favori.appartement);
-          }
-          return adapters.appartementList(favori);
-        });
+        // Adapter les appartements
+        return favorisArray.map(appartement => adapters.appartementList(appartement));
       } catch (error) {
         console.error('Erreur lors du chargement des favoris:', error);
         throw error;
@@ -46,12 +41,45 @@ export const useToggleFavori = () => {
     ({ appartementId, action }) => 
       favorisService.toggle({ appartement_id: appartementId, action }),
     {
-      onSuccess: (data) => {
+      onMutate: async ({ appartementId, action }) => {
+        // Annuler les requêtes en cours
+        await queryClient.cancelQueries('favoris');
+        
+        // Sauvegarder les données précédentes
+        const previousFavoris = queryClient.getQueryData('favoris');
+        
+        // Mettre à jour l'optimistic update
+        if (previousFavoris) {
+          let updatedFavoris = Array.isArray(previousFavoris) ? [...previousFavoris] : previousFavoris;
+          
+          if (action === 'remove') {
+            // Retirer l'appartement de la liste
+            if (Array.isArray(updatedFavoris)) {
+              updatedFavoris = updatedFavoris.filter(fav => fav.id !== appartementId);
+            }
+          }
+          
+          queryClient.setQueryData('favoris', updatedFavoris);
+        }
+        
+        return { previousFavoris };
+      },
+      onSuccess: (data, variables) => {
+        // Invalider et forcer un refetch
         queryClient.invalidateQueries('favoris');
         queryClient.invalidateQueries('appartements');
-        toast.success(data.message);
+        queryClient.invalidateQueries('user');
+        
+        // Utiliser l'action envoyée, pas celle de la réponse
+        const successMessage = variables.action === 'add' ? 'Ajouté aux favoris' : 'Retiré des favoris';
+        toast.success(data.message || successMessage);
       },
-      onError: (error) => {
+      onError: (error, variables, context) => {
+        // Restaurer les données précédentes en cas d'erreur
+        if (context?.previousFavoris) {
+          queryClient.setQueryData('favoris', context.previousFavoris);
+        }
+        
         const message = error.response?.data?.error || 'Erreur de mise à jour';
         toast.error(message);
       },

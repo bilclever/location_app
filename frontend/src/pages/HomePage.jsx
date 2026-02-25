@@ -59,7 +59,7 @@ const HomePage = () => {
       <section className="section section-surface">
         <div className="container">
           <div className="section-title">
-            <h2>Derniers appartements disponibles</h2>
+            <h2>Top annonces</h2>
             <Link to="/appartements" className="btn btn-outline">
               Voir tous les appartements
             </Link>

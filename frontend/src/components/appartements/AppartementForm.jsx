@@ -209,7 +209,7 @@ const AppartementForm = ({ appartement, onSuccess }) => {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
         <div className="form-group">
           <label htmlFor="loyer_mensuel" className="form-label">
-            Loyer mensuel (€) *
+            Loyer mensuel (CFA) *
           </label>
           <input
             type="number"
@@ -227,7 +227,7 @@ const AppartementForm = ({ appartement, onSuccess }) => {
 
         <div className="form-group">
           <label htmlFor="caution" className="form-label">
-            Caution (€)
+            Caution (CFA)
           </label>
           <input
             type="number"
