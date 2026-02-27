@@ -20,16 +20,16 @@ export const useAppartements = (params = {}) => {
   );
 };
 
-export const useAppartement = (id) => {
+export const useAppartement = (slug) => {
   return useQuery(
-    ['appartement', id],
+    ['appartement', slug],
     async () => {
-      if (!id) {
-        throw new Error('ID appartement manquant');
+      if (!slug) {
+        throw new Error('Slug appartement manquant');
       }
       
       try {
-        const data = await appartementService.getById(id);
+        const data = await appartementService.getBySlug(slug);
         if (!data) {
           throw new Error('Appartement non trouvé');
         }
@@ -40,25 +40,25 @@ export const useAppartement = (id) => {
       }
     },
     {
-      enabled: !!id,
+      enabled: !!slug,
       staleTime: 5 * 60 * 1000,
       retry: 1,
     }
   );
 };
 
-export const useAppartementLocations = (id, params = {}) => {
+export const useAppartementLocations = (slug, params = {}) => {
   return useQuery(
-    ['appartement', id, 'locations', params],
+    ['appartement', slug, 'locations', params],
     async () => {
-      const data = await appartementService.getLocations(id, params);
+      const data = await appartementService.getLocations(slug, params);
       return {
         ...adapters.paginatedResponse(data),
         results: data.results.map(adapters.locationList),
       };
     },
     {
-      enabled: !!id,
+      enabled: !!slug,
     }
   );
 };
@@ -85,11 +85,11 @@ export const useUpdateAppartement = () => {
   const queryClient = useQueryClient();
   
   return useMutation(
-    ({ id, data }) => appartementService.update(id, data),
+    ({ slug, data }) => appartementService.update(slug, data),
     {
-      onSuccess: (_, { id }) => {
+      onSuccess: (_, { slug }) => {
         queryClient.invalidateQueries('appartements');
-        queryClient.invalidateQueries(['appartement', id]);
+        queryClient.invalidateQueries(['appartement', slug]);
         toast.success('Appartement mis à jour');
       },
       onError: (error) => {
@@ -104,7 +104,7 @@ export const useDeleteAppartement = () => {
   const queryClient = useQueryClient();
   
   return useMutation(
-    (id) => appartementService.delete(id),
+    (slug) => appartementService.delete(slug),
     {
       onSuccess: () => {
         queryClient.invalidateQueries('appartements');
@@ -120,8 +120,8 @@ export const useDeleteAppartement = () => {
 
 export const useCheckDisponibilite = () => {
   return useMutation(
-    ({ id, dateDebut, dateFin }) => 
-      appartementService.checkDisponibilite(id, dateDebut, dateFin)
+    ({ slug, dateDebut, dateFin }) => 
+      appartementService.checkDisponibilite(slug, dateDebut, dateFin)
   );
 };
 
@@ -129,10 +129,10 @@ export const useUploadPhoto = () => {
   const queryClient = useQueryClient();
   
   return useMutation(
-    ({ id, formData }) => appartementService.uploadPhoto(id, formData),
+    ({ slug, formData }) => appartementService.uploadPhoto(slug, formData),
     {
-      onSuccess: (_, { id }) => {
-        queryClient.invalidateQueries(['appartement', id]);
+      onSuccess: (_, { slug }) => {
+        queryClient.invalidateQueries(['appartement', slug]);
         toast.success('Photo ajoutée avec succès');
       },
       onError: (error) => {

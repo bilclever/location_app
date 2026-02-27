@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.html import format_html
+from django.utils import timezone
 from .models import (
     User, Proprietaire, Locataire, Appartement,
     Photo, Location, Favori
@@ -53,16 +54,17 @@ class PhotoInline(admin.TabularInline):
 
 @admin.register(Appartement)
 class AppartementAdmin(admin.ModelAdmin):
-    list_display = ['titre', 'ville', 'loyer_mensuel', 'proprietaire', 'disponible', 'nb_vues', 'apercu_photo']
+    list_display = ['titre', 'slug', 'ville', 'loyer_mensuel', 'proprietaire', 'disponible', 'nb_vues', 'apercu_photo']
     list_filter = ['disponible', 'ville', 'nb_pieces']
     search_fields = ['titre', 'description', 'adresse']
     list_editable = ['disponible']
     readonly_fields = ['nb_vues', 'nb_favoris', 'date_creation', 'date_modification']
     inlines = [PhotoInline]
-    
+    prepopulated_fields = {'slug': ('titre',)}
+
     fieldsets = (
         ('Informations générales', {
-            'fields': ('titre', 'description', 'proprietaire')
+            'fields': ('titre', 'slug', 'description', 'proprietaire')
         }),
         ('Localisation', {
             'fields': ('adresse', 'ville', 'code_postal')

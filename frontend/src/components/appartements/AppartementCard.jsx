@@ -40,7 +40,7 @@ const AppartementCard = ({ appartement }) => {
 
   return (
     <div className="card appartement-card-compact">
-      <Link to={`/appartements/${appartement.id}`} className="card-link">
+      <Link to={`/appartements/${appartement.slug}`} className="card-link">
         <div className="image-wrapper">
           <img 
             src={appartement.photoPrincipaleUrl || '/images/default-appartement.jpg'} 

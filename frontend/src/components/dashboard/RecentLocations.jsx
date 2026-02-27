@@ -29,19 +29,19 @@ const RecentLocations = ({ locations }) => {
           {locations.map(location => (
             <tr key={location.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
               <td style={{ padding: '0.75rem' }}>
-                <Link to={`/appartements/${location.appartement_id}`}>
-                  {location.appartement_titre}
+                <Link to={`/appartements/${location.appartementSlug}`}>
+                  {location.appartementTitre}
                 </Link>
               </td>
               <td style={{ padding: '0.75rem' }}>
-                <div>{location.nom_locataire}</div>
+                <div>{location.nomLocataire}</div>
                 <div style={{ fontSize: '0.875rem', color: '#666' }}>
                   {location.emailLocataire}
                 </div>
               </td>
               <td style={{ padding: '0.75rem' }}>
-                <div>du {formatters.date(location.date_debut)}</div>
-                <div>au {formatters.date(location.date_fin)}</div>
+                <div>du {formatters.date(location.dateDebut)}</div>
+                <div>au {formatters.date(location.dateFin)}</div>
               </td>
               <td style={{ padding: '0.75rem', fontWeight: '500' }}>
                 {formatters.price(location.montantTotal)}

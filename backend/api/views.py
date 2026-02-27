@@ -178,7 +178,8 @@ class AppartementViewSet(viewsets.ModelViewSet):
     ordering_fields = ['loyer_mensuel', 'surface', 'date_creation', 'nb_vues']
     ordering = ['-date_creation']
     pagination_class = StandardResultsSetPagination
-    
+    lookup_field = 'slug'
+
     def get_serializer_class(self):
         if self.action == 'list':
             return AppartementListSerializer
@@ -385,7 +386,7 @@ class LocationViewSet(viewsets.ModelViewSet):
         serializer = LocationDetailSerializer(location)
         return Response(serializer.data)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=['post'])
     def confirmer(self, request, pk=None):
         """Confirmer une location (admin ou propriétaire de l'appartement)"""
         location = self.get_object()
@@ -514,39 +515,39 @@ class ProprietaireDashboardView(APIView):
         try:
             proprietaire = request.user.profil_proprietaire
             appartements = proprietaire.appartements.all()
-            
+
             # Statistiques générales
             total_appartements = appartements.count()
             appartements_disponibles = appartements.filter(disponible=True).count()
-            
+
             # Locations
             locations = Location.objects.filter(appartement__in=appartements)
             locations_en_cours = locations.filter(
                 statut__in=['RESERVE', 'CONFIRME'],
                 date_fin__gte=timezone.now().date()
             ).count()
-            
+
             # Revenus
             revenus_total = locations.filter(
                 statut='PAYE'
             ).aggregate(total=Sum('montant_total'))['total'] or 0
-            
+
             revenus_mois = locations.filter(
                 statut='PAYE',
                 date_paiement__month=timezone.now().month,
                 date_paiement__year=timezone.now().year
             ).aggregate(total=Sum('montant_total'))['total'] or 0
-            
+
             # Locations par statut
             locations_par_statut = locations.values('statut').annotate(
                 count=Count('id')
             )
-            
+
             # Appartements les plus réservés
             top_appartements = appartements.annotate(
                 nb_locations=Count('locations')
             ).order_by('-nb_locations')[:5]
-            
+
             top_appartements_data = [
                 {
                     'id': a.id,
@@ -558,7 +559,7 @@ class ProprietaireDashboardView(APIView):
                 }
                 for a in top_appartements
             ]
-            
+
             stats = {
                 'appartements': {
                     'total': total_appartements,
@@ -579,7 +580,7 @@ class ProprietaireDashboardView(APIView):
                 },
                 'top_appartements': top_appartements_data,
             }
-            
+
             return Response(stats)
             
         except Proprietaire.DoesNotExist:
@@ -605,24 +606,24 @@ class LocataireDashboardView(APIView):
                 date_debut__gt=timezone.now().date(),
                 statut__in=['RESERVE', 'CONFIRME']
             ).count()
-            
+
             locations_passees = locations.filter(
                 date_fin__lt=timezone.now().date()
             ).count()
-            
+
             # Dépenses
             depenses_total = locations.filter(
                 statut='PAYE'
             ).aggregate(total=Sum('montant_total'))['total'] or 0
-            
+
             # Prochaine location
             prochaine_location = locations.filter(
                 date_debut__gt=timezone.now().date()
             ).order_by('date_debut').first()
-            
+
             # Favoris
             favoris_count = locataire.favoris.count()
-            
+
             stats = {
                 'locations': {
                     'total': total_locations,
@@ -635,7 +636,7 @@ class LocataireDashboardView(APIView):
                 'prochaine_location': LocationListSerializer(prochaine_location).data if prochaine_location else None,
                 'favoris': favoris_count,
             }
-            
+
             return Response(stats)
             
         except Locataire.DoesNotExist:

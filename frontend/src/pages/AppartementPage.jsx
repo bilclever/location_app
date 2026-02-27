@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAppartements } from '../hooks/useAppartements';
-import AppartementCard from '../components/appartements/AppartementCard';
+import AppartementCarousel from '../components/appartements/AppartementCarousel';
 import AppartementFilters from '../components/appartements/AppartementFilters';
 import Pagination from '../components/common/Pagination';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -53,11 +53,7 @@ const AppartementPage = () => {
 
           {data && data.results.length > 0 && (
             <>
-              <div className="grid grid-3 reveal-list">
-                {data.results.map(appartement => (
-                  <AppartementCard key={appartement.id} appartement={appartement} />
-                ))}
-              </div>
+              <AppartementCarousel appartements={data.results} />
 
               <Pagination
                 currentPage={data.current_page}

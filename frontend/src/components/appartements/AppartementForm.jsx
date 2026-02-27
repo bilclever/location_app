@@ -101,7 +101,7 @@ const AppartementForm = ({ appartement, onSuccess }) => {
       });
 
       if (appartement) {
-        await updateMutation.mutateAsync({ id: appartement.id, data: formDataToSend });
+        await updateMutation.mutateAsync({ slug: appartement.slug, data: formDataToSend });
       } else {
         await createMutation.mutateAsync(formDataToSend);
       }

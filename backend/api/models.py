@@ -3,6 +3,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator, RegexVa
 from django.utils import timezone
 from django.contrib.auth.models import AbstractUser, Group, Permission
 from decimal import Decimal
+from django.utils.text import slugify
 
 
 class User(AbstractUser):
@@ -341,6 +342,9 @@ class Appartement(models.Model):
         blank=True
     )
     
+    # Slug pour lookup friendly URLs
+    slug = models.SlugField(max_length=255, unique=True, db_index=True, null=True, blank=True)
+
     # Statistiques
     nb_vues = models.IntegerField(
         default=0,
@@ -386,6 +390,18 @@ class Appartement(models.Model):
         """Incrémente le compteur de vues"""
         self.nb_vues += 1
         self.save(update_fields=['nb_vues'])
+
+    def save(self, *args, **kwargs):
+        """Génère un slug unique à partir du titre si nécessaire"""
+        if not self.slug and self.titre:
+            base = slugify(self.titre)[:200]
+            slug_candidate = base
+            counter = 1
+            while Appartement.objects.filter(slug=slug_candidate).exclude(pk=self.pk).exists():
+                slug_candidate = f"{base}-{counter}"
+                counter += 1
+            self.slug = slug_candidate
+        super().save(*args, **kwargs)
 
 
 class Photo(models.Model):

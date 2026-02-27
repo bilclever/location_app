@@ -67,6 +67,7 @@ export const adapters = {
   // Adaptation de AppartementList vers format frontend
   appartementList: (data) => ({
     id: data.id,
+    slug: data.slug,
     titre: data.titre,
     ville: data.ville,
     loyerMensuel: parseFloat(data.loyer_mensuel),
@@ -99,6 +100,7 @@ export const adapters = {
     
     return {
       id: data.id,
+      slug: data.slug,
       titre: data.titre,
       description: data.description,
       adresse: data.adresse,
@@ -124,6 +126,7 @@ export const adapters = {
   locationList: (data) => ({
     id: data.id,
     appartementId: data.appartement_id,
+    appartementSlug: data.appartement_slug,
     appartementTitre: data.appartement_titre,
     appartementVille: data.appartement_ville,
     locataireId: data.locataire_id,

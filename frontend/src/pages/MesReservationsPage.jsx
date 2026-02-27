@@ -22,9 +22,7 @@ const MesReservationsPage = () => {
   return (
     <div className="container">
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-        <div className="page-header">
-          <h1>Mes réservations</h1>
-        </div>
+      
 
         <div style={{ marginBottom: '2rem' }}>
           <select

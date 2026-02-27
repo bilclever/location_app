@@ -297,7 +297,7 @@ class AppartementListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appartement
         fields = [
-            'id', 'titre', 'ville', 'loyer_mensuel', 'surface',
+            'id', 'slug', 'titre', 'ville', 'loyer_mensuel', 'surface',
             'nb_pieces', 'disponible', 'photo_principale_url',
             'proprietaire_nom', 'nb_vues', 'nb_favoris'
         ]
@@ -328,7 +328,7 @@ class AppartementDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appartement
         fields = [
-            'id', 'titre', 'description', 'adresse', 'ville', 'code_postal',
+            'id', 'slug', 'titre', 'description', 'adresse', 'ville', 'code_postal',
             'loyer_mensuel', 'caution', 'surface', 'nb_pieces',
             'disponible', 'photo_principale', 'photo_principale_url',
             'photos', 'proprietaire', 'nb_vues', 'nb_favoris',
@@ -403,6 +403,9 @@ class LocationCreateSerializer(serializers.ModelSerializer):
     """
     Sérialiseur pour créer une location
     """
+    # Acceptation via slug pour l'appartement
+    appartement = serializers.SlugRelatedField(queryset=Appartement.objects.all(), slug_field='slug')
+
     class Meta:
         model = Location
         fields = [
@@ -423,13 +426,13 @@ class LocationCreateSerializer(serializers.ModelSerializer):
                 "La date de début ne peut pas être dans le passé"
             )
         
-        # Vérifier la disponibilité de l'appartement
+        # Vérifier la disponibilité de l'appartement (ne considère que les réservations confirmées/payées)
         appartement = data['appartement']
         locations_conflictuelles = Location.objects.filter(
             appartement=appartement,
             date_debut__lte=data['date_fin'],
             date_fin__gte=data['date_debut'],
-            statut__in=['RESERVE', 'CONFIRME', 'PAYE']
+            statut__in=['CONFIRME', 'PAYE']
         )
         
         if locations_conflictuelles.exists():
@@ -537,3 +540,4 @@ class StatistiquesSerializer(serializers.Serializer):
     locations = serializers.DictField()
     utilisateurs = serializers.DictField()
     revenus = serializers.DictField()
+

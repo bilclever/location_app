@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { AuthProvider } from './context/AuthContext';
 import PrivateRoute from './components/common/PrivateRoute';
@@ -20,18 +20,21 @@ import AdminPage from './pages/AdminPage';
 import './assets/styles/main.scss';
 
 function App() {
+  const location = useLocation();
+  const isHomePage = location.pathname === '/';
+  
   return (
     <ErrorBoundary>
       <HelmetProvider>
         <AuthProvider>
           <Header />
-          <main className="page">
+          <main className={`page ${isHomePage ? 'home' : ''}`}>
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/appartements" element={<AppartementPage />} />
-              <Route path="/appartements/:id" element={<AppartementDetailPage />} />
+              <Route path="/appartements/:slug" element={<AppartementDetailPage />} />
               
               <Route path="/profile" element={
                 <PrivateRoute>
@@ -39,7 +42,7 @@ function App() {
                 </PrivateRoute>
               } />
               
-              <Route path="/reservations/:id" element={
+              <Route path="/reservations/:slug" element={
                 <PrivateRoute>
                   <ReservationPage />
                 </PrivateRoute>

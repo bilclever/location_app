@@ -14,7 +14,7 @@ const AppartementDetails = ({ appartement, onRefresh }) => {
       navigate('/login');
       return;
     }
-    navigate(`/reservations/${appartement.id}`);
+    navigate(`/reservations/${appartement.slug}`);
   };
 
   const allPhotos = [

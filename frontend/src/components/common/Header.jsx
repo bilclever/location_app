@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import logo from '../../assets/images/logo1.png';
@@ -11,7 +12,11 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [localFilters, setLocalFilters] = useState(Object.fromEntries(searchParams));
+  const [localFilters, setLocalFilters] = useState(() => {
+    const initialFilters = Object.fromEntries(searchParams);
+    delete initialFilters.search;
+    return initialFilters;
+  });
 
   // Fermer le menu quand la fenêtre est redimensionnée
   useEffect(() => {
@@ -25,13 +30,29 @@ const Header = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    setSearchQuery(searchParams.get('search') || '');
+    const nextFilters = Object.fromEntries(searchParams);
+    delete nextFilters.search;
+    setLocalFilters(nextFilters);
+  }, [searchParams]);
+
   const handleSearch = (e) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/appartements?search=${encodeURIComponent(searchQuery)}`);
-      setSearchQuery('');
-      setIsMenuOpen(false);
+    const trimmedQuery = searchQuery.trim();
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (trimmedQuery) {
+      nextParams.set('search', trimmedQuery);
+    } else {
+      nextParams.delete('search');
     }
+
+    nextParams.delete('page');
+    const queryString = nextParams.toString();
+    navigate(queryString ? `/appartements?${queryString}` : '/appartements');
+    setIsMenuOpen(false);
+    setIsFiltersOpen(false);
   };
 
   const handleFilterChange = (e) => {
@@ -56,6 +77,105 @@ const Header = () => {
     navigate('/');
     setIsMenuOpen(false);
   };
+
+  const filtersModal = isFiltersOpen ? createPortal(
+    <>
+      <div className="filters-modal-overlay" onClick={() => setIsFiltersOpen(false)}></div>
+      <div className="filters-modal">
+        <div className="filters-modal-header">
+          <h3>Filtres</h3>
+          <button
+            type="button"
+            className="btn-close"
+            onClick={() => setIsFiltersOpen(false)}
+          >
+            ✕
+          </button>
+        </div>
+        <form onSubmit={handleApplyFilters} className="filters-modal-body">
+          <div className="form-group">
+            <label htmlFor="ville" className="form-label">
+              Ville
+            </label>
+            <select
+              id="ville"
+              name="ville"
+              className="form-control"
+              value={localFilters.ville || ''}
+              onChange={handleFilterChange}
+            >
+              <option value="">Toutes les villes</option>
+              {VILLES.map(ville => (
+                <option key={ville} value={ville}>{ville}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="disponible" className="form-label">
+              Disponibilité
+            </label>
+            <select
+              id="disponible"
+              name="disponible"
+              className="form-control"
+              value={localFilters.disponible || ''}
+              onChange={handleFilterChange}
+            >
+              <option value="">Tous</option>
+              <option value="true">Disponibles</option>
+              <option value="false">Indisponibles</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="nb_pieces" className="form-label">
+              Pièces minimum
+            </label>
+            <select
+              id="nb_pieces"
+              name="nb_pieces__gte"
+              className="form-control"
+              value={localFilters['nb_pieces__gte'] || ''}
+              onChange={handleFilterChange}
+            >
+              <option value="">Tous</option>
+              {NB_PIECES.map(nb => (
+                <option key={nb} value={nb}>{nb} pièce{nb > 1 ? 's' : ''}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="loyer_max" className="form-label">
+              Loyer max (CFA)
+            </label>
+            <select
+              id="loyer_max"
+              name="loyer_mensuel__lte"
+              className="form-control"
+              value={localFilters['loyer_mensuel__lte'] || ''}
+              onChange={handleFilterChange}
+            >
+              <option value="">Tous</option>
+              {PRIX_MAX.map(prix => (
+                <option key={prix} value={prix}>{prix} CFA</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filters-modal-actions">
+            <button type="submit" className="btn btn-primary btn-block">
+              Appliquer
+            </button>
+            <button type="button" className="btn btn-outline btn-block" onClick={handleResetFilters}>
+              Réinitialiser
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
+  , document.body) : null;
 
   return (
     <header className="header">
@@ -176,120 +296,8 @@ const Header = () => {
           )}
         </nav>
 
-        {isFiltersOpen && (
-          <>
-            <div className="filters-modal-overlay" onClick={() => setIsFiltersOpen(false)}></div>
-            <div className="filters-modal">
-              <div className="filters-modal-header">
-                <h3>Filtres</h3>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setIsFiltersOpen(false)}
-                >
-                  ✕
-                </button>
-              </div>
-              <form onSubmit={handleApplyFilters} className="filters-modal-body">
-                <div className="form-group">
-                  <label htmlFor="search" className="form-label">
-                    Rechercher
-                  </label>
-                  <input
-                    type="text"
-                    id="search"
-                    name="search"
-                    className="form-control"
-                    placeholder="Titre, description..."
-                    value={localFilters.search || ''}
-                    onChange={handleFilterChange}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="ville" className="form-label">
-                    Ville
-                  </label>
-                  <select
-                    id="ville"
-                    name="ville"
-                    className="form-control"
-                    value={localFilters.ville || ''}
-                    onChange={handleFilterChange}
-                  >
-                    <option value="">Toutes les villes</option>
-                    {VILLES.map(ville => (
-                      <option key={ville} value={ville}>{ville}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="disponible" className="form-label">
-                    Disponibilité
-                  </label>
-                  <select
-                    id="disponible"
-                    name="disponible"
-                    className="form-control"
-                    value={localFilters.disponible || ''}
-                    onChange={handleFilterChange}
-                  >
-                    <option value="">Tous</option>
-                    <option value="true">Disponibles</option>
-                    <option value="false">Indisponibles</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="nb_pieces" className="form-label">
-                    Pièces minimum
-                  </label>
-                  <select
-                    id="nb_pieces"
-                    name="nb_pieces__gte"
-                    className="form-control"
-                    value={localFilters['nb_pieces__gte'] || ''}
-                    onChange={handleFilterChange}
-                  >
-                    <option value="">Tous</option>
-                    {NB_PIECES.map(nb => (
-                      <option key={nb} value={nb}>{nb} pièce{nb > 1 ? 's' : ''}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="loyer_max" className="form-label">
-                    Loyer max (CFA)
-                  </label>
-                  <select
-                    id="loyer_max"
-                    name="loyer_mensuel__lte"
-                    className="form-control"
-                    value={localFilters['loyer_mensuel__lte'] || ''}
-                    onChange={handleFilterChange}
-                  >
-                    <option value="">Tous</option>
-                    {PRIX_MAX.map(prix => (
-                      <option key={prix} value={prix}>{prix} CFA</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="filters-modal-actions">
-                  <button type="submit" className="btn btn-primary btn-block">
-                    Appliquer
-                  </button>
-                  <button type="button" className="btn btn-outline btn-block" onClick={handleResetFilters}>
-                    Réinitialiser
-                  </button>
-                </div>
-              </form>
-            </div>
-          </>
-        )}
       </div>
+      {filtersModal}
     </header>
   );
 };

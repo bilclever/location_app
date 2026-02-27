@@ -61,7 +61,7 @@ const LocationCard = ({ location, onUpdate }) => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
           <div>
             <h4 style={{ marginBottom: '0.5rem' }}>
-              {location.appartement_titre}
+              {location.appartementTitre}
             </h4>
             <p style={{ color: '#666', marginBottom: '0.5rem' }}>
               {location.appartementVille}

@@ -12,9 +12,7 @@ const ProfilePage = () => {
   return (
     <div className="container">
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-        <div className="page-header">
-          <h1>Mon profil</h1>
-        </div>
+        
 
         <div className="tabs">
           <button

@@ -25,21 +25,6 @@ const AppartementFilters = ({ filters, onFilterChange }) => {
       <form onSubmit={handleSubmit}>
         <div className="filters-grid">
           <div className="form-group">
-            <label htmlFor="search" className="form-label">
-              Rechercher
-            </label>
-            <input
-              type="text"
-              id="search"
-              name="search"
-              className="form-control"
-              placeholder="Titre, description..."
-              value={localFilters.search || ''}
-              onChange={handleChange}
-            />
-          </div>
-
-          <div className="form-group">
             <label htmlFor="ville" className="form-label">
               Ville
             </label>

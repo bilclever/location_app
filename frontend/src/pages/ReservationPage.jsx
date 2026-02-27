@@ -6,9 +6,9 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import { formatters } from '../utils/formatters';
 
 const ReservationPage = () => {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
-  const { data: appartement, isLoading, error } = useAppartement(id);
+  const { data: appartement, isLoading, error } = useAppartement(slug);
 
   if (isLoading) return <LoadingSpinner fullPage />;
 
@@ -31,7 +31,7 @@ const ReservationPage = () => {
         <div className="alert alert-warning">
           Cet appartement n'est pas disponible pour le moment.
         </div>
-        <Link to={`/appartements/${id}`} className="btn btn-primary">
+        <Link to={`/appartements/${slug}`} className="btn btn-primary">
           Retour à l'appartement
         </Link>
       </div>
@@ -87,7 +87,7 @@ const ReservationPage = () => {
               </div>
             </div>
 
-            <ReservationForm appartementId={id} appartement={appartement} />
+            <ReservationForm appartementSlug={slug} appartement={appartement} />
           </div>
         </div>
       </div>

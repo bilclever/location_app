@@ -7,7 +7,7 @@ import { validators } from '../../utils/validators';
 import { formatters } from '../../utils/formatters';
 import toast from 'react-hot-toast';
 
-const ReservationForm = ({ appartementId, appartement }) => {
+const ReservationForm = ({ appartementSlug, appartement }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const createMutation = useCreateLocation();
@@ -58,7 +58,7 @@ const ReservationForm = ({ appartementId, appartement }) => {
 
     try {
       const result = await appartementService.checkDisponibilite(
-        appartementId,
+        appartementSlug,
         formData.date_debut,
         formData.date_fin
       );
@@ -122,7 +122,7 @@ const ReservationForm = ({ appartementId, appartement }) => {
 
     try {
       await createMutation.mutateAsync({
-        appartement: appartementId,
+        appartement: appartement.id,
         ...formData,
       });
       
@@ -232,7 +232,7 @@ const ReservationForm = ({ appartementId, appartement }) => {
         <button
           type="button"
           className="btn btn-outline"
-          onClick={() => navigate(`/appartements/${appartementId}`)}
+          onClick={() => navigate(`/appartements/${appartementSlug}`)}
         >
           Annuler
         </button>

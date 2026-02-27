@@ -75,7 +75,7 @@ const LocataireDashboard = () => {
                 </div>
               </div>
               <Link
-                to={`/appartements/${stats.prochaine_location.appartement_id}`}
+                to={`/appartements/${stats.prochaine_location.appartement_slug}`}
                 className="btn btn-outline btn-sm"
               >
                 Voir l'appartement

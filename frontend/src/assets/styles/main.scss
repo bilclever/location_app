@@ -271,7 +271,11 @@ a {
 .page {
   position: relative;
   min-height: calc(100vh - 4rem - 20rem);
-  padding: $spacing-8 0 $spacing-12;
+  padding: 0 0 $spacing-12;
+  
+  &:not(.home) {
+    background: white;
+  }
 }
 
 .section {
@@ -936,7 +940,7 @@ a {
   }
 
   .filters-grid {
-    grid-template-columns: 1.6fr repeat(4, minmax(140px, 1fr)) 200px;
+    grid-template-columns: repeat(4, minmax(140px, 1fr)) 200px;
     align-items: end;
     gap: $spacing-3;
   }
@@ -990,7 +994,7 @@ a {
 
   .filters-grid {
     display: grid;
-    grid-template-columns: 1.6fr repeat(4, minmax(140px, 1fr)) 200px;
+    grid-template-columns: repeat(4, minmax(140px, 1fr)) 200px;
     align-items: end;
     gap: $spacing-3;
   }
@@ -1021,15 +1025,17 @@ a {
 
 .filters-modal {
   position: fixed;
-  bottom: 0;
+  top: 0;
   left: 0;
   right: 0;
   background-color: white;
-  border-radius: $radius-xl $radius-xl 0 0;
+  border-radius: 0 0 $radius-xl $radius-xl;
   z-index: 100;
   max-height: 90vh;
-  overflow-y: auto;
-  animation: slideUp 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideDown 0.3s ease-in-out;
   
   @media (min-width: calc($breakpoint-md + 1px)) {
     display: none;
@@ -1069,6 +1075,8 @@ a {
   padding: $spacing-4;
   display: grid;
   gap: $spacing-4;
+  overflow-y: auto;
+  flex: 1;
   
   .form-group {
     margin-bottom: 0;
@@ -1081,11 +1089,15 @@ a {
   gap: $spacing-3;
   padding: $spacing-4;
   border-top: 1px solid rgba($gray-200, 0.7);
+  background-color: white;
+  position: sticky;
+  bottom: 0;
+  box-shadow: 0 -8px 16px rgba(0, 0, 0, 0.08);
 }
 
-@keyframes slideUp {
+@keyframes slideDown {
   from {
-    transform: translateY(100%);
+    transform: translateY(-100%);
   }
   to {
     transform: translateY(0);
@@ -1280,6 +1292,100 @@ a {
       height: 24px;
     }
   }
+}
+
+// Appartement Carousel
+.carousel-container {
+  position: relative;
+  width: 100%;
+  padding: 0 48px;
+
+  @media (max-width: $breakpoint-md) {
+    padding: 0 40px;
+  }
+}
+
+.carousel-wrapper {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; // Firefox
+  -ms-overflow-style: none; // IE
+  
+  &::-webkit-scrollbar {
+    display: none; // Chrome, Safari
+  }
+}
+
+.carousel-track {
+  display: flex;
+  gap: 24px;
+  
+  @media (max-width: $breakpoint-md) {
+    gap: 16px;
+  }
+}
+
+.carousel-item {
+  flex: 0 0 calc(33.333% - 16px);
+  min-width: 300px;
+  max-width: 400px;
+
+  @media (max-width: 1200px) {
+    flex: 0 0 calc(50% - 12px);
+  }
+
+  @media (max-width: $breakpoint-md) {
+    flex: 0 0 calc(100% - 32px);
+    min-width: 280px;
+  }
+}
+
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: white;
+  border: none;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+  color: $gray-900;
+
+  &:hover {
+    background: $primary;
+    color: white;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    transform: translateY(-50%) scale(1.05);
+  }
+
+  &:active {
+    transform: translateY(-50%) scale(0.95);
+  }
+
+  @media (max-width: $breakpoint-md) {
+    width: 40px;
+    height: 40px;
+    
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
+}
+
+.carousel-arrow-left {
+  left: 0;
+}
+
+.carousel-arrow-right {
+  right: 0;
 }
 
 // Appartement details

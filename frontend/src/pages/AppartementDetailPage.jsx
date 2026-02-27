@@ -6,10 +6,10 @@ import { formatters } from '../utils/formatters';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const AppartementDetailPage = () => {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  const { data: appartement, isLoading, error } = useAppartement(id);
+  const { data: appartement, isLoading, error } = useAppartement(slug);
   const [selectedImage, setSelectedImage] = useState(null);
 
   if (isLoading) return <LoadingSpinner fullPage />;
@@ -23,7 +23,7 @@ const AppartementDetailPage = () => {
               {error?.message || 'Appartement non trouvé'}
               {error?.response?.status === 404 && (
                 <p style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
-                  ID: {id}
+                  Slug: {slug}
                 </p>
               )}
             </div>
@@ -41,7 +41,7 @@ const AppartementDetailPage = () => {
       navigate('/login');
       return;
     }
-    navigate(`/reservations/${id}`);
+    navigate(`/reservations/${slug}`);
   };
 
   return (

@@ -20,10 +20,7 @@ const FavorisPage = () => {
 
   return (
     <div className="container">
-      <div className="page-header">
-        <h1>Mes favoris</h1>
-        <p>{favoris?.length || 0} appartement{favoris?.length > 1 ? 's' : ''} en favori{favoris?.length > 1 ? 's' : ''}</p>
-      </div>
+      
 
       {favoris && favoris.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem' }}>

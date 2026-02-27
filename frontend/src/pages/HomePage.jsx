@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAppartements } from '../hooks/useAppartements';
-import AppartementCard from '../components/appartements/AppartementCard';
+import AppartementCarousel from '../components/appartements/AppartementCarousel';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const HomePage = () => {
@@ -12,7 +12,7 @@ const HomePage = () => {
   });
 
   return (
-    <div className="page home">
+    <>
       <section className="hero">
         <div className="container hero-content">
           <div className="hero-copy">
@@ -73,13 +73,7 @@ const HomePage = () => {
             </div>
           )}
 
-          {data && (
-            <div className="grid grid-3 reveal-list">
-              {data.results.map(appartement => (
-                <AppartementCard key={appartement.id} appartement={appartement} />
-              ))}
-            </div>
-          )}
+          {data && <AppartementCarousel appartements={data.results} />}
         </div>
       </section>
 
@@ -97,7 +91,7 @@ const HomePage = () => {
           </div>
         </div>
       </section>
-    </div>
+    </>
   );
 };
 
