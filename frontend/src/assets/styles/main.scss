@@ -916,7 +916,7 @@ a {
 
 .filters-compact {
   padding: $spacing-3 $spacing-4;
-  max-width: 980px;
+  max-width: 1100px;
   margin: 0 auto $spacing-6;
   background-color: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(6px);
@@ -967,7 +967,7 @@ a {
 // Filters desktop (always visible on desktop)
 .filters-desktop {
   padding: $spacing-3 $spacing-4;
-  max-width: 980px;
+  max-width: 1100px;
   margin: 0 auto $spacing-6;
   background-color: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(6px);
@@ -1298,7 +1298,7 @@ a {
 .carousel-container {
   position: relative;
   width: 100%;
-  padding: 0 48px;
+  padding: 0 40px;
 
   @media (max-width: $breakpoint-md) {
     padding: 0 40px;
@@ -1318,7 +1318,7 @@ a {
 
 .carousel-track {
   display: flex;
-  gap: 24px;
+  gap: 20px;
   
   @media (max-width: $breakpoint-md) {
     gap: 16px;
@@ -1326,15 +1326,21 @@ a {
 }
 
 .carousel-item {
-  flex: 0 0 calc(33.333% - 16px);
-  min-width: 300px;
-  max-width: 400px;
+  flex: 0 0 calc(25% - 15px);
+  min-width: 210px;
+  max-width: 240px;
 
   @media (max-width: 1200px) {
-    flex: 0 0 calc(50% - 12px);
+    flex: 0 0 calc(33.333% - 14px);
+    min-width: 220px;
   }
 
   @media (max-width: $breakpoint-md) {
+    flex: 0 0 calc(50% - 12px);
+    min-width: 260px;
+  }
+
+  @media (max-width: $breakpoint-sm) {
     flex: 0 0 calc(100% - 32px);
     min-width: 280px;
   }
@@ -1386,6 +1392,24 @@ a {
 
 .carousel-arrow-right {
   right: 0;
+}
+
+.carousel-overflow-wide {
+  width: calc(100% + 120px);
+  margin-left: -60px;
+  margin-right: -60px;
+
+  @media (max-width: $breakpoint-lg) {
+    width: calc(100% + 48px);
+    margin-left: -24px;
+    margin-right: -24px;
+  }
+
+  @media (max-width: $breakpoint-md) {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
 }
 
 // Appartement details

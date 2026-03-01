@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAppartements } from '../hooks/useAppartements';
 import AppartementCarousel from '../components/appartements/AppartementCarousel';
@@ -8,20 +8,20 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const AppartementPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [filters, setFilters] = useState(Object.fromEntries(searchParams));
+  const filters = Object.fromEntries(searchParams);
+  const { page: _page, ...activeFilters } = filters;
 
   const { data, isLoading, error } = useAppartements({
-    ...filters,
+    ...activeFilters,
     page: searchParams.get('page') || 1,
   });
 
   const handleFilterChange = (newFilters) => {
-    setFilters(newFilters);
     setSearchParams({ ...newFilters, page: 1 });
   };
 
   const handlePageChange = (page) => {
-    setSearchParams({ ...filters, page });
+    setSearchParams({ ...activeFilters, page });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -29,17 +29,9 @@ const AppartementPage = () => {
     <div className="page listing">
       <section className="section section-surface">
         <div className="container">
-          <AppartementFilters filters={filters} onFilterChange={handleFilterChange} />
+          <AppartementFilters filters={activeFilters} onFilterChange={handleFilterChange} />
 
-          {isLoading && <LoadingSpinner fullPage />}
-
-          {error && (
-            <div className="alert alert-error">
-              Une erreur est survenue lors du chargement des appartements.
-            </div>
-          )}
-
-          {data && data.results.length === 0 && (
+          {data && data.results.length === 0 && !isLoading && (
             <div style={{ textAlign: 'center', padding: '3rem' }}>
               <p>Aucun appartement ne correspond a vos criteres.</p>
               <button
@@ -51,16 +43,26 @@ const AppartementPage = () => {
             </div>
           )}
 
-          {data && data.results.length > 0 && (
-            <>
-              <AppartementCarousel appartements={data.results} />
+          {isLoading && <LoadingSpinner fullPage />}
 
-              <Pagination
-                currentPage={data.current_page}
-                totalPages={data.total_pages}
-                onPageChange={handlePageChange}
-              />
-            </>
+          {error && (
+            <div className="alert alert-error">
+              Une erreur est survenue lors du chargement des appartements.
+            </div>
+          )}
+
+          {data && data.results.length > 0 && (
+            <div className="carousel-overflow-wide">
+              <AppartementCarousel appartements={data.results} />
+            </div>
+          )}
+
+          {data && data.results.length > 0 && (
+            <Pagination
+              currentPage={data.current_page}
+              totalPages={data.total_pages}
+              onPageChange={handlePageChange}
+            />
           )}
         </div>
       </section>
