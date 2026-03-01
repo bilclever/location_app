@@ -27,7 +27,12 @@ export const authService = {
 
   // PUT /api/auth/profile/
   async updateProfile(data) {
-    const response = await api.put('/auth/profile/', data);
+    // Si FormData, axios gérera automatiquement le Content-Type multipart/form-data
+    const config = data instanceof FormData ? {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    } : {};
+    
+    const response = await api.put('/auth/profile/', data, config);
     return response.data;
   },
 

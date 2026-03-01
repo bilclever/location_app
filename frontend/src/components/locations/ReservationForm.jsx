@@ -34,7 +34,7 @@ const ReservationForm = ({ appartementSlug, appartement }) => {
     if (user) {
       setFormData(prev => ({
         ...prev,
-        nom_locataire: `${user.prenom || ''} ${user.nom || ''}`.trim() || user.username,
+        nom_locataire: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username,
         email_locataire: user.email || '',
         telephone_locataire: user.telephone || '',
         date_debut: today,
@@ -121,16 +121,24 @@ const ReservationForm = ({ appartementSlug, appartement }) => {
     setErrors({});
 
     try {
-      await createMutation.mutateAsync({
-        appartement: appartement.id,
+      const payload = {
+        appartement: appartementSlug,
         ...formData,
-      });
+      };
+      
+      console.log('Payload envoyé:', payload);
+      
+      await createMutation.mutateAsync(payload);
       
       toast.success('Réservation effectuée avec succès');
       navigate('/mes-reservations');
     } catch (error) {
+      console.error('Erreur réservation complète:', error);
+      console.error('Détails erreur backend:', error.response?.data);
+      
       if (error.response?.data) {
         setErrors(error.response.data);
+        toast.error('Vérifiez les champs du formulaire');
       }
     } finally {
       setIsLoading(false);

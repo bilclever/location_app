@@ -284,7 +284,7 @@ const Header = () => {
               )}
               
               <NavLink to="/profile" className="header-link" onClick={() => setIsMenuOpen(false)}>
-                {user?.first_name || 'Profil'}
+                {user?.firstName || 'Profil'}
               </NavLink>
               
               <button onClick={handleLogout} className="btn btn-outline btn-sm">

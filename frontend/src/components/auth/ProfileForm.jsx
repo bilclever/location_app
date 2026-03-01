@@ -4,18 +4,18 @@ import { validators } from '../../utils/validators';
 
 const ProfileForm = ({ user }) => {
   const { updateProfile } = useAuth();
+  
   const [formData, setFormData] = useState({
-    first_name: user?.first_name || '',
-    last_name: user?.last_name || '',
+    first_name: user?.firstName || '',
+    last_name: user?.lastName || '',
     telephone: user?.telephone || '',
     adresse: user?.adresse || '',
-    date_naissance: user?.date_naissance || '',
-    notifications_email: user?.notifications_email || true,
+    notifications_email: user?.notificationsEmail !== false,
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [photo, setPhoto] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(user?.photo_profil || '/images/default-avatar.png');
+  const [photoPreview, setPhotoPreview] = useState(user?.photoProfil || '/images/default-avatar.png');
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -63,16 +63,24 @@ const ProfileForm = ({ user }) => {
     setErrors({});
 
     try {
-      const formDataToSend = new FormData();
-      Object.keys(formData).forEach(key => {
-        formDataToSend.append(key, formData[key]);
-      });
+      let dataToSend;
       
       if (photo) {
+        // Envoyer en FormData si photo présente
+        const formDataToSend = new FormData();
+        Object.keys(formData).forEach(key => {
+          formDataToSend.append(key, formData[key]);
+        });
         formDataToSend.append('photo_profil', photo);
+        dataToSend = formDataToSend;
+        console.log('Envoi profil avec photo (FormData)');
+      } else {
+        // Envoyer en JSON si pas de photo
+        dataToSend = formData;
+        console.log('Envoi profil sans photo (JSON):', dataToSend);
       }
 
-      await updateProfile(formDataToSend);
+      await updateProfile(dataToSend);
     } catch (error) {
       if (error.response?.data) {
         setErrors(error.response.data);
@@ -85,6 +93,12 @@ const ProfileForm = ({ user }) => {
   return (
     <form onSubmit={handleSubmit}>
       <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+        {(!formData.first_name || !formData.last_name || !formData.adresse) && (
+          <div style={{ background: '#fef3c7', border: '1px solid #fbbf24', color: '#92400e', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
+            ⚠️ Complétez votre profil en remplissant tous les champs ci-dessous
+          </div>
+        )}
+        
         <div style={{
           width: '120px',
           height: '120px',
@@ -207,23 +221,6 @@ const ProfileForm = ({ user }) => {
         />
         {errors.adresse && (
           <div className="form-error">{errors.adresse}</div>
-        )}
-      </div>
-
-      <div className="form-group">
-        <label htmlFor="date_naissance" className="form-label">
-          Date de naissance
-        </label>
-        <input
-          type="date"
-          id="date_naissance"
-          name="date_naissance"
-          className={`form-control ${errors.date_naissance ? 'error' : ''}`}
-          value={formData.date_naissance}
-          onChange={handleChange}
-        />
-        {errors.date_naissance && (
-          <div className="form-error">{errors.date_naissance}</div>
         )}
       </div>
 

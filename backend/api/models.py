@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.contrib.auth.models import AbstractUser, Group, Permission
 from decimal import Decimal
 from django.utils.text import slugify
+from django.db.models.signals import pre_save
 
 
 class User(AbstractUser):
@@ -632,3 +633,10 @@ class Favori(models.Model):
         # Mettre à jour le compteur de favoris de l'appartement
         appartement.nb_favoris = appartement.favoris.count()
         appartement.save(update_fields=['nb_favoris'])
+
+
+def generate_slug(instance, **kwargs):
+    if not instance.slug and instance.titre:
+        instance.slug = slugify(instance.titre)
+
+pre_save.connect(generate_slug, sender=Appartement)

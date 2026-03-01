@@ -15,32 +15,12 @@ export const adapters = {
     // Extraire les favoris de différentes sources possibles
     let favoris = [];
     
-    // Log pour debug
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-      console.log('[Adapter] Full user data:', data);
-      console.log('[Adapter] data.favoris:', data.favoris);
-      console.log('[Adapter] data.favoris_ids:', data.favoris_ids);
-      console.log('[Adapter] data.profil_locataire:', data.profil_locataire);
-    }
-    
     if (Array.isArray(data.favoris)) {
       favoris = data.favoris;
-      console.log('[Adapter] ✅ Found favoris from data.favoris:', favoris);
     } else if (Array.isArray(data.favoris_ids)) {
       favoris = data.favoris_ids;
-      console.log('[Adapter] ✅ Found favoris from data.favoris_ids:', favoris);
     } else if (data.profil_locataire?.favoris && Array.isArray(data.profil_locataire.favoris)) {
       favoris = data.profil_locataire.favoris;
-      console.log('[Adapter] ✅ Found favoris from data.profil_locataire.favoris:', favoris);
-    } else {
-      // Chercher tous les chemins possibles en tant que fallback
-      for (const [key, value] of Object.entries(data)) {
-        if (key.includes('favor') && Array.isArray(value)) {
-          favoris = value;
-          console.log(`[Adapter] ✅ Found favoris from data.${key}:`, favoris);
-          break;
-        }
-      }
     }
     
     return {
@@ -53,7 +33,7 @@ export const adapters = {
       telephone: data.telephone,
       role: data.role,
       adresse: data.adresse,
-      photoProfil: data.photo_profil,
+      photoProfil: withMediaBase(data.photo_profil),
       dateNaissance: data.date_naissance,
       verifie: data.verifie,
       notificationsEmail: data.notifications_email,
