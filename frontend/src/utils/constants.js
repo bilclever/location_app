@@ -6,7 +6,6 @@ export const ROLE_ENUM = {
 };
 
 export const STATUT_ENUM = {
-  PENDING: 'PENDING',
   RESERVE: 'RESERVE',
   CONFIRME: 'CONFIRME',
   PAYE: 'PAYE',
@@ -27,8 +26,7 @@ export const ROLE_LABELS = {
 };
 
 export const STATUT_LABELS = {
-  [STATUT_ENUM.PENDING]: 'En attente de confirmation',
-  [STATUT_ENUM.RESERVE]: 'Réservé',
+  [STATUT_ENUM.RESERVE]: 'En attente de confirmation',
   [STATUT_ENUM.CONFIRME]: 'Confirmé',
   [STATUT_ENUM.PAYE]: 'Payé',
   [STATUT_ENUM.ANNULE]: 'Annulé',
@@ -36,7 +34,6 @@ export const STATUT_LABELS = {
 };
 
 export const STATUT_COLORS = {
-  [STATUT_ENUM.PENDING]: 'warning',
   [STATUT_ENUM.RESERVE]: 'warning',
   [STATUT_ENUM.CONFIRME]: 'info',
   [STATUT_ENUM.PAYE]: 'success',

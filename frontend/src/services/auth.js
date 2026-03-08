@@ -20,8 +20,16 @@ export const authService = {
   },
 
   // GET /api/auth/profile/
-  async getProfile() {
-    const response = await api.get('/auth/profile/');
+  async getProfile(accessToken = null) {
+    const config = accessToken
+      ? {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      : undefined;
+
+    const response = await api.get('/auth/profile/', config);
     return response.data;
   },
 

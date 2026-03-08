@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import React, { useEffect, useState } from 'react';
+import { useAuthContext as useAuth } from '../../context/AuthContext';
 import { validators } from '../../utils/validators';
 
 const ProfileForm = ({ user }) => {
@@ -16,6 +16,21 @@ const ProfileForm = ({ user }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [photo, setPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(user?.photoProfil || '/images/default-avatar.png');
+
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      first_name: user?.firstName || '',
+      last_name: user?.lastName || '',
+      telephone: user?.telephone || '',
+      adresse: user?.adresse || '',
+      notifications_email: user?.notificationsEmail !== false,
+    }));
+
+    if (!photo) {
+      setPhotoPreview(user?.photoProfil || '/images/default-avatar.png');
+    }
+  }, [user, photo]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;

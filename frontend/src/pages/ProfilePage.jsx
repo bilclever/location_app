@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthContext as useAuth } from '../context/AuthContext';
 import ProfileForm from '../components/auth/ProfileForm';
+import ProprietaireDashboard from '../components/dashboard/ProprietaireDashboard';
+import MesReservationsPage from './MesReservationsPage';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const ProfilePage = () => {
-  const { user, loading } = useAuth();
+  const { user, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
 
-  if (loading) return <LoadingSpinner fullPage />;
+  if (isLoading) return <LoadingSpinner fullPage />;
 
   return (
     <div className="container">
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-        
-
         <div className="tabs">
           <button
             className={`tabs-btn ${activeTab === 'profile' ? 'active' : ''}`}
@@ -22,16 +22,16 @@ const ProfilePage = () => {
             Informations
           </button>
           <button
-            className={`tabs-btn ${activeTab === 'security' ? 'active' : ''}`}
-            onClick={() => setActiveTab('security')}
+            className={`tabs-btn ${activeTab === 'reservations' ? 'active' : ''}`}
+            onClick={() => setActiveTab('reservations')}
           >
-            Sécurité
+            Mes réservations
           </button>
           <button
-            className={`tabs-btn ${activeTab === 'preferences' ? 'active' : ''}`}
-            onClick={() => setActiveTab('preferences')}
+            className={`tabs-btn ${activeTab === 'annonces' ? 'active' : ''}`}
+            onClick={() => setActiveTab('annonces')}
           >
-            Préférences
+            Mes annonces
           </button>
         </div>
 
@@ -39,18 +39,12 @@ const ProfilePage = () => {
           <div className="card-body">
             {activeTab === 'profile' && <ProfileForm user={user} />}
             
-            {activeTab === 'security' && (
-              <div>
-                <h3>Changer le mot de passe</h3>
-                {/* Formulaire de changement de mot de passe */}
-              </div>
+            {activeTab === 'reservations' && (
+              <MesReservationsPage isEmbedded={true} />
             )}
             
-            {activeTab === 'preferences' && (
-              <div>
-                <h3>Préférences</h3>
-                {/* Formulaire de préférences */}
-              </div>
+            {activeTab === 'annonces' && (
+              <ProprietaireDashboard isEmbedded={true} />
             )}
           </div>
         </div>

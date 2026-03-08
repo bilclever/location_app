@@ -2,19 +2,19 @@ import React from 'react';
 import { useQuery } from 'react-query';
 import { dashboardService } from '../../services/dashboard';
 import StatCard from './StatCard';
-import RecentLocations from './RecentLocations';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { formatters } from '../../utils/formatters';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { STATUT_LABELS } from '../../utils/constants';
 
-const ProprietaireDashboard = () => {
+const ProprietaireDashboard = ({ isEmbedded = false }) => {
+  const navigate = useNavigate();
   const { data: stats, isLoading, error } = useQuery(
     'proprietaireStats',
     () => dashboardService.getProprietaireStats()
   );
 
-  if (isLoading) return <LoadingSpinner fullPage />;
+  if (isLoading) return isEmbedded ? <p>Chargement...</p> : <LoadingSpinner fullPage />;
 
   if (error) {
     return (
@@ -24,10 +24,10 @@ const ProprietaireDashboard = () => {
     );
   }
 
-  return (
+  const content = (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h2>Tableau de bord propriétaire</h2>
+        {!isEmbedded && <h2>Tableau de bord propriétaire</h2>}
         <Link to="/appartements/ajouter" className="btn btn-primary">
           + Ajouter un appartement
         </Link>
@@ -37,27 +37,23 @@ const ProprietaireDashboard = () => {
         <StatCard
           label="Appartements"
           value={stats.appartements.total}
-          icon="🏢"
         />
         
         <StatCard
           label="Disponibles"
           value={stats.appartements.disponibles}
-          icon="✓"
           color="#10b981"
         />
         
         <StatCard
           label="Occupés"
           value={stats.appartements.occupes}
-          icon="✗"
           color="#ef4444"
         />
         
         <StatCard
           label="Locations en cours"
           value={stats.locations.en_cours}
-          icon="📅"
           color="#f59e0b"
         />
       </div>
@@ -66,26 +62,22 @@ const ProprietaireDashboard = () => {
         <StatCard
           label="Total locations"
           value={stats.locations.total}
-          icon="📊"
         />
         
         <StatCard
           label="Revenus totaux"
           value={formatters.price(stats.revenus.total)}
-          icon="💰"
         />
         
         <StatCard
           label="Revenus du mois"
           value={formatters.price(stats.revenus.mois_en_cours)}
-          icon="💶"
           color="#10b981"
         />
         
         <StatCard
           label="Commission"
           value={formatters.price(stats.revenus.commission)}
-          icon="📈"
           color="#8b5cf6"
         />
       </div>
@@ -111,10 +103,22 @@ const ProprietaireDashboard = () => {
       {stats.top_appartements && stats.top_appartements.length > 0 && (
         <div style={{ marginTop: '2rem' }}>
           <h3>Appartements les plus réservés</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+          <div className="dashboard-annonces-grid">
             {stats.top_appartements.map(app => (
-              <div key={app.id} className="card">
-                <div className="card-body">
+              <div
+                key={app.id}
+                className="card dashboard-annonce-card"
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(app.slug ? `/appartements/${app.slug}` : '/appartements')}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    navigate(app.slug ? `/appartements/${app.slug}` : '/appartements');
+                  }
+                }}
+              >
+                <div className="card-body dashboard-annonce-card-body">
                   <h4>{app.titre}</h4>
                   <div style={{ marginTop: '1rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -134,6 +138,18 @@ const ProprietaireDashboard = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+
+  if (isEmbedded) {
+    return content;
+  }
+
+  return (
+    <div className="container">
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        {content}
+      </div>
     </div>
   );
 };

@@ -1,55 +1,230 @@
+import { useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { authService } from '../services/auth';
 import { adapters } from '../utils/adapters';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
 export const useAuth = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const syncedTokenRef = useRef(null);
+
+  const buildUserFromSession = useCallback((session) => {
+    const supabaseUser = session?.user;
+    if (!supabaseUser) {
+      return null;
+    }
+
+    const metadata = supabaseUser.user_metadata || {};
+    const fullName = metadata.full_name || metadata.name || null;
+    const firstName = metadata.given_name || (fullName ? fullName.split(' ')[0] : null);
+    const lastName = metadata.family_name || null;
+    const fallbackUsername = supabaseUser.email ? supabaseUser.email.split('@')[0] : null;
+
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email,
+      username: metadata.preferred_username || fallbackUsername,
+      firstName,
+      lastName,
+      fullName,
+      role: null,
+      telephone: null,
+      adresse: null,
+      photoProfil: metadata.avatar_url || null,
+      favoris: [],
+    };
+  }, []);
+
+  const mergeProfileWithFallbackAvatar = useCallback((profileData, session = null, existingUser = null) => {
+    const adaptedUser = adapters.userProfile(profileData);
+    if (adaptedUser?.photoProfil) {
+      return adaptedUser;
+    }
+
+    const sessionFallbackUser = buildUserFromSession(session);
+    return {
+      ...adaptedUser,
+      photoProfil: sessionFallbackUser?.photoProfil || existingUser?.photoProfil || null,
+    };
+  }, [buildUserFromSession]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) {
+      return undefined;
+    }
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT' || !session?.access_token) {
+        syncedTokenRef.current = null;
+        queryClient.setQueryData('user', null);
+        return;
+      }
+
+      if (syncedTokenRef.current === session.access_token) {
+        return;
+      }
+
+      syncedTokenRef.current = session.access_token;
+
+      const fallbackUser = buildUserFromSession(session);
+      if (fallbackUser) {
+        queryClient.setQueryData('user', fallbackUser);
+      }
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        try {
+          const profileData = await authService.getProfile(session.access_token);
+          const existingUser = queryClient.getQueryData('user');
+          queryClient.setQueryData('user', mergeProfileWithFallbackAvatar(profileData, session, existingUser));
+        } catch (profileError) {
+          // Conserver le fallback local sans relancer une boucle de requêtes
+        }
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [queryClient, buildUserFromSession, mergeProfileWithFallbackAvatar]);
+
+  const loginWithGoogle = async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Google Auth non configuré: ajoutez REACT_APP_SUPABASE_ANON_KEY dans .env puis redémarrez le serveur');
+    }
+
+    const redirectTo = `${window.location.origin}/auth/callback`;
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+  };
+
+  const completeOAuthLogin = async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Configuration Supabase incomplète');
+    }
+
+    let session = null;
+    let sessionError = null;
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const {
+        data,
+        error,
+      } = await supabase.auth.getSession();
+
+      session = data?.session || null;
+      sessionError = error || null;
+
+      if (session?.access_token) {
+        break;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+
+    if (sessionError || !session?.access_token) {
+      throw sessionError || new Error('Session Supabase introuvable');
+    }
+
+    try {
+      const profileData = await authService.getProfile(session.access_token);
+      const existingUser = queryClient.getQueryData('user');
+      const adaptedUser = mergeProfileWithFallbackAvatar(profileData, session, existingUser);
+      queryClient.setQueryData('user', adaptedUser);
+      return adaptedUser;
+    } catch (profileError) {
+      const fallbackUser = buildUserFromSession(session);
+      if (!fallbackUser) {
+        throw profileError;
+      }
+
+      queryClient.setQueryData('user', fallbackUser);
+      return fallbackUser;
+    }
+  };
 
   const { data: user, isLoading } = useQuery(
     'user',
     async () => {
-      const token = localStorage.getItem('access_token');
-      if (!token) return null;
-      
-      try {
-        const data = await authService.getProfile();
-        return adapters.userProfile(data);
-      } catch (error) {
-        // Si 401, essayer de refresh le token
-        if (error.response?.status === 401) {
-          try {
-            const refreshToken = localStorage.getItem('refresh_token');
-            if (refreshToken) {
-              const refreshData = await authService.refreshToken(refreshToken);
-              localStorage.setItem('access_token', refreshData.access);
-              // Réessayer le profil avec le nouveau token
-              const retryData = await authService.getProfile();
-              return adapters.userProfile(retryData);
-            }
-          } catch (refreshError) {
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            return null;
-          }
-        }
-        
-        // Si 403, c'est une erreur d'authentification, déconnecter silencieusement
-        if (error.response?.status === 403) {
+      if (!isSupabaseConfigured || !supabase) {
+        const token = localStorage.getItem('access_token');
+        if (!token) return null;
+
+        try {
+          const data = await authService.getProfile();
+          const existingUser = queryClient.getQueryData('user');
+          return mergeProfileWithFallbackAvatar(data, null, existingUser);
+        } catch (error) {
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
           return null;
         }
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        return null;
+      }
+      
+      try {
+        const data = await authService.getProfile();
+        const existingUser = queryClient.getQueryData('user');
+        return mergeProfileWithFallbackAvatar(data, session, existingUser);
+      } catch (error) {
+        // Si 401, essayer de refresh la session Supabase
+        if (error.response?.status === 401) {
+          try {
+            const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession();
+
+            if (!refreshError && refreshedData?.session?.access_token) {
+              const retryData = await authService.getProfile();
+              const existingUser = queryClient.getQueryData('user');
+              return mergeProfileWithFallbackAvatar(retryData, refreshedData.session, existingUser);
+            }
+          } catch (refreshError) {
+            await supabase.auth.signOut();
+            return null;
+          }
+        }
         
+        // Si 403 sur /auth/profile, conserver la session Supabase et utiliser un fallback local
+        if (error.response?.status === 403) {
+          const fallbackUser = buildUserFromSession(session);
+          if (fallbackUser) {
+            return fallbackUser;
+          }
+        }
+        
+        const fallbackUser = buildUserFromSession(session);
+        if (fallbackUser) {
+          return fallbackUser;
+        }
+
         throw error;
       }
     },
     {
       staleTime: 10 * 60 * 1000, // Plus long (10 min au lieu de 5)
       retry: false, // Ne pas réessayer automatiquement
-      enabled: !!localStorage.getItem('access_token'), // Seulement si token existe
+      enabled: true,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
     }
   );
 
@@ -100,30 +275,38 @@ export const useAuth = () => {
 
   const logoutMutation = useMutation(
     () => {
-      const refreshToken = localStorage.getItem('refresh_token');
-      return authService.logout(refreshToken);
+      if (!isSupabaseConfigured || !supabase) {
+        return Promise.resolve();
+      }
+
+      return supabase.auth.signOut();
     },
     {
-      onSuccess: () => {
+      onSuccess: async () => {
+        try {
+          const refreshToken = localStorage.getItem('refresh_token');
+          if (refreshToken) {
+            await authService.logout(refreshToken);
+          }
+        } catch (error) {
+          // Logout backend optionnel en mode Supabase-first
+        }
+
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         queryClient.setQueryData('user', null);
         queryClient.clear();
         toast.success('Déconnexion réussie');
-        navigate('/login');
+        navigate('/');
       },
       onError: (error) => {
-        // Ne pas afficher d'erreur sur 403 - juste déconnecter localement
-        if (error.response?.status === 403) {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          queryClient.setQueryData('user', null);
-          queryClient.clear();
-          navigate('/login');
-        } else {
-          const message = error.response?.data?.error || 'Erreur de déconnexion';
-          toast.error(message);
-        }
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        queryClient.setQueryData('user', null);
+        queryClient.clear();
+        const message = error?.message || 'Erreur de déconnexion';
+        toast.error(message);
+        navigate('/');
       },
       retry: false, // Ne pas réessayer
     }
@@ -160,9 +343,8 @@ export const useAuth = () => {
     user,
     isLoading,
     isAuthenticated: !!user,
-    isLocataire: user?.role === 'LOCATAIRE',
-    isProprietaire: user?.role === 'PROPRIETAIRE',
-    isAdmin: user?.role === 'ADMIN',
+    loginWithGoogle,
+    completeOAuthLogin,
     login: loginMutation.mutate,
     loginAsync: loginMutation.mutateAsync,
     register: registerMutation.mutate,

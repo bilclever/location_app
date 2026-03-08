@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuthContext as useAuth } from '../../context/AuthContext';
 import logo from '../../assets/images/logo1.png';
 import { VILLES, NB_PIECES, PRIX_MAX } from '../../utils/constants';
 
 const Header = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+    const [searchParams] = useSearchParams();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -260,22 +260,10 @@ const Header = () => {
 
           {isAuthenticated ? (
             <>
-              {user?.role === 'LOCATAIRE' && (
-                <>
-                  <NavLink to="/favoris" className="header-link" onClick={() => setIsMenuOpen(false)}>
-                    Favoris
-                  </NavLink>
-                  <NavLink to="/mes-reservations" className="header-link" onClick={() => setIsMenuOpen(false)}>
-                    Mes réservations
-                  </NavLink>
-                </>
-              )}
-              
-              {user?.role === 'PROPRIETAIRE' && (
-                <NavLink to="/dashboard" className="header-link" onClick={() => setIsMenuOpen(false)}>
-                  Tableau de bord
-                </NavLink>
-              )}
+              {/* Avec Supabase Auth unifié, un utilisateur peut être à la fois locataire et propriétaire */}
+              <NavLink to="/favoris" className="header-link" onClick={() => setIsMenuOpen(false)}>
+                Favoris
+              </NavLink>
               
               {user?.role === 'ADMIN' && (
                 <NavLink to="/admin" className="header-link" onClick={() => setIsMenuOpen(false)}>

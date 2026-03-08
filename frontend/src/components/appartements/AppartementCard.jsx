@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuthContext as useAuth } from '../../context/AuthContext';
 import { useToggleFavori } from '../../hooks/useFavoris';
 import { formatters } from '../../utils/formatters';
 
@@ -71,7 +71,7 @@ const AppartementCard = ({ appartement }) => {
         </div>
       </Link>
 
-      {user?.role === 'LOCATAIRE' && (
+      {isAuthenticated && (
         <button
           onClick={handleToggleFavori}
           className="btn-favori-compact"

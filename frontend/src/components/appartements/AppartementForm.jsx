@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCreateAppartement, useUpdateAppartement } from '../../hooks/useAppartements';
+import { useCreateAppartement, useUpdateAppartement, useUploadPhoto } from '../../hooks/useAppartements';
 import { validators } from '../../utils/validators';
 import { VILLES, NB_PIECES } from '../../utils/constants';
 
@@ -8,6 +8,7 @@ const AppartementForm = ({ appartement, onSuccess }) => {
   const navigate = useNavigate();
   const createMutation = useCreateAppartement();
   const updateMutation = useUpdateAppartement();
+  const uploadPhotoMutation = useUploadPhoto();
   
   const [formData, setFormData] = useState({
     titre: appartement?.titre || '',
@@ -16,7 +17,7 @@ const AppartementForm = ({ appartement, onSuccess }) => {
     ville: appartement?.ville || 'Paris',
     code_postal: appartement?.code_postal || '',
     loyer_mensuel: appartement?.loyer_mensuel || '',
-    caution: appartement?.caution || '',
+    caution_mois: appartement?.cautionMois ?? 0,
     surface: appartement?.surface || '',
     nb_pieces: appartement?.nb_pieces || 1,
     disponible: appartement?.disponible ?? true,
@@ -93,17 +94,40 @@ const AppartementForm = ({ appartement, onSuccess }) => {
     try {
       const formDataToSend = new FormData();
       Object.keys(formData).forEach(key => {
+        if (key === 'surface' && (formData[key] === '' || formData[key] === null || formData[key] === undefined)) {
+          return;
+        }
         formDataToSend.append(key, formData[key]);
       });
 
-      photos.forEach(photo => {
-        formDataToSend.append('photos', photo);
-      });
+      // Ajouter la première photo comme photo principale
+      if (photos.length > 0) {
+        formDataToSend.append('photo_principale', photos[0]);
+      }
 
+      let result;
       if (appartement) {
-        await updateMutation.mutateAsync({ slug: appartement.slug, data: formDataToSend });
+        result = await updateMutation.mutateAsync({ slug: appartement.slug, data: formDataToSend });
       } else {
-        await createMutation.mutateAsync(formDataToSend);
+        result = await createMutation.mutateAsync(formDataToSend);
+      }
+
+      // Si on a créé un nouvel appartement et qu'il y a des photos supplémentaires, les uploader
+      if (!appartement && result && photos.length > 1) {
+        const slug = result.slug;
+        
+        // Uploader chaque photo supplémentaire
+        for (let i = 1; i < photos.length; i++) {
+          const photoFormData = new FormData();
+          photoFormData.append('photo', photos[i]);
+          
+          try {
+            await uploadPhotoMutation.mutateAsync({ slug, formData: photoFormData });
+          } catch (uploadError) {
+            console.error(`Erreur lors de l'upload de la photo ${i + 1}:`, uploadError);
+            // Continuer même si une photo échoue
+          }
+        }
       }
 
       if (onSuccess) {
@@ -226,20 +250,24 @@ const AppartementForm = ({ appartement, onSuccess }) => {
         </div>
 
         <div className="form-group">
-          <label htmlFor="caution" className="form-label">
-            Caution (CFA)
+          <label htmlFor="caution_mois" className="form-label">
+            Caution (nombre de mois)
           </label>
           <input
             type="number"
-            id="caution"
-            name="caution"
-            step="0.01"
+            id="caution_mois"
+            name="caution_mois"
             min="0"
-            className={`form-control ${errors.caution ? 'error' : ''}`}
-            value={formData.caution}
+            className={`form-control ${errors.caution_mois ? 'error' : ''}`}
+            value={formData.caution_mois}
             onChange={handleChange}
           />
-          {errors.caution && <div className="form-error">{errors.caution}</div>}
+          {errors.caution_mois && <div className="form-error">{errors.caution_mois}</div>}
+          {formData.loyer_mensuel && Number(formData.caution_mois) > 0 && (
+            <div className="form-hint">
+              Montant caution estimé : {Number(formData.loyer_mensuel) * Number(formData.caution_mois)} CFA
+            </div>
+          )}
         </div>
       </div>
 
@@ -319,7 +347,7 @@ const AppartementForm = ({ appartement, onSuccess }) => {
             <div key={index} style={{ position: 'relative' }}>
               <img
                 src={URL.createObjectURL(photo)}
-                alt={`Photo ${index + 1}`}
+                alt={`Aperçu ${index + 1}`}
                 style={{
                   width: '100%',
                   height: '100px',

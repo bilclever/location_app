@@ -1,6 +1,14 @@
 import api from './api';
 
 export const appartementService = {
+  buildRequestConfig(data) {
+    if (data instanceof FormData) {
+      return {};
+    }
+
+    return {};
+  },
+
   // GET /api/appartements/
   async getAll(params = {}) {
     const response = await api.get('/appartements/', { params });
@@ -15,19 +23,19 @@ export const appartementService = {
 
   // POST /api/appartements/
   async create(data) {
-    const response = await api.post('/appartements/', data);
+    const response = await api.post('/appartements/', data, this.buildRequestConfig(data));
     return response.data;
   },
 
   // PUT /api/appartements/{slug}/
   async update(slug, data) {
-    const response = await api.put(`/appartements/${slug}/`, data);
+    const response = await api.put(`/appartements/${slug}/`, data, this.buildRequestConfig(data));
     return response.data;
   },
 
   // PATCH /api/appartements/{slug}/
   async partialUpdate(slug, data) {
-    const response = await api.patch(`/appartements/${slug}/`, data);
+    const response = await api.patch(`/appartements/${slug}/`, data, this.buildRequestConfig(data));
     return response.data;
   },
 

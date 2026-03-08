@@ -88,6 +88,7 @@ export const adapters = {
       codePostal: data.code_postal,
       loyerMensuel: parseFloat(data.loyer_mensuel),
       caution: parseFloat(data.caution),
+      cautionMois: data.caution_mois ?? 0,
       surface: data.surface,
       nbPieces: data.nb_pieces,
       disponible: data.disponible,
@@ -95,6 +96,7 @@ export const adapters = {
       photoPrincipaleUrl: withMediaBase(data.photo_principale_url),
       photos: photos,
       proprietaire: data.proprietaire,
+      proprietaireTelephone: data.proprietaire_telephone,
       nbVues: data.nb_vues,
       nbFavoris: data.nb_favoris,
       dateCreation: data.date_creation,
@@ -109,15 +111,17 @@ export const adapters = {
     appartementSlug: data.appartement_slug,
     appartementTitre: data.appartement_titre,
     appartementVille: data.appartement_ville,
+    appartementProprietaireId: data.appartement_proprietaire_id,
     locataireId: data.locataire_id,
     locataireNom: data.locataire_nom,
     nomLocataire: data.nom_locataire,
+    emailLocataire: data.email_locataire,
+    telephoneLocataire: data.telephone_locataire,
     dateDebut: data.date_debut,
     dateFin: data.date_fin,
     statut: data.statut,
     montantTotal: parseFloat(data.montant_total),
     dateReservation: data.date_reservation,
-    estActive: data.est_active,
   }),
 
   // Adaptation de LocationDetail vers format frontend
@@ -138,7 +142,6 @@ export const adapters = {
     commission: parseFloat(data.commission),
     notes: data.notes,
     dureeSejour: data.duree_sejour,
-    estActive: data.est_active,
   }),
 
   // Adaptation de PaginatedResponse

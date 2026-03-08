@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuthContext as useAuth } from '../../context/AuthContext';
 import { formatters } from '../../utils/formatters';
 import { STATUT_LABELS } from '../../utils/constants';
 
 const AppartementDetails = ({ appartement, onRefresh }) => {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [selectedImage, setSelectedImage] = useState(null);
 
   const handleReserver = () => {
@@ -21,6 +21,10 @@ const AppartementDetails = ({ appartement, onRefresh }) => {
     ...(appartement.photoPrincipaleUrl ? [appartement.photoPrincipaleUrl] : []),
     ...(appartement.photos?.map(p => p.image) || [])
   ];
+  const cautionMois = Number(appartement?.cautionMois || 0);
+  const cautionAmount = cautionMois > 0
+    ? Number(appartement.loyerMensuel || 0) * cautionMois
+    : Number(appartement.caution || 0);
 
   return (
     <div className="appartement-details">
@@ -92,7 +96,7 @@ const AppartementDetails = ({ appartement, onRefresh }) => {
             </div>
             <div className="info-item">
               <span className="item-label">Caution</span>
-              <span className="item-value">{formatters.price(appartement.caution)}</span>
+              <span className="item-value">{cautionMois} mois ({formatters.price(cautionAmount)})</span>
             </div>
           </div>
         </div>

@@ -1,32 +1,25 @@
 import React from 'react';
-import { useAuth } from '../../hooks/useAuth';
-import { useUpdateLocation, useAnnulerLocation, useConfirmerLocation } from '../../hooks/useLocations';
+import { useNavigate } from 'react-router-dom';
+import { useAnnulerLocation, useConfirmerLocation } from '../../hooks/useLocations';
+import { useAuthContext as useAuth } from '../../context/AuthContext';
 import { formatters } from '../../utils/formatters';
 import { STATUT_COLORS, STATUT_LABELS } from '../../utils/constants';
 import toast from 'react-hot-toast';
 
-const LocationCard = ({ location, onUpdate }) => {
+const LocationCard = ({ location, onUpdate, isOwnProperty = false }) => {
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const updateMutation = useUpdateLocation();
   const annulerMutation = useAnnulerLocation();
   const confirmerMutation = useConfirmerLocation();
 
-  const handleStatutChange = async (e) => {
-    const nouveauStatut = e.target.value;
-    
-    try {
-      await updateMutation.mutateAsync({
-        id: location.id,
-        data: { statut: nouveauStatut },
-      });
-      toast.success('Statut mis à jour');
-      if (onUpdate) onUpdate();
-    } catch (error) {
-      toast.error('Erreur de mise à jour');
+  const handleCardClick = () => {
+    if (location.appartementSlug) {
+      navigate(`/appartements/${location.appartementSlug}`);
     }
   };
 
-  const handleAnnuler = async () => {
+  const handleAnnuler = async (e) => {
+    e.stopPropagation();
     if (!window.confirm('Êtes-vous sûr de vouloir annuler cette réservation ?')) {
       return;
     }
@@ -40,7 +33,9 @@ const LocationCard = ({ location, onUpdate }) => {
     }
   };
 
-  const handleConfirmer = async () => {
+  const handleConfirmer = async (e) => {
+    e.stopPropagation();
+    
     try {
       await confirmerMutation.mutateAsync(location.id);
       toast.success('Réservation confirmée');
@@ -50,13 +45,19 @@ const LocationCard = ({ location, onUpdate }) => {
     }
   };
 
-  const isProprietaire = user?.role === 'PROPRIETAIRE';
-  const isLocataire = user?.role === 'LOCATAIRE';
+  // Le propriétaire (ou admin via backend) peut confirmer une réservation en attente
+  const isPropertyOwner = isOwnProperty || (
+    user?.id && location?.appartementProprietaireId && String(user.id) === String(location.appartementProprietaireId)
+  );
   const peutAnnuler = location.statut === 'RESERVE' || location.statut === 'CONFIRME';
-  const peutConfirmer = isProprietaire && location.statut === 'PENDING';
+  const peutConfirmer = isPropertyOwner && location.statut === 'RESERVE';
 
   return (
-    <div className="card" style={{ marginBottom: '1rem' }}>
+    <div 
+      className="card" 
+      style={{ marginBottom: '1rem', cursor: 'pointer' }}
+      onClick={handleCardClick}
+    >
       <div className="card-body">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
           <div>
@@ -119,38 +120,23 @@ const LocationCard = ({ location, onUpdate }) => {
           </div>
         )}
 
-        {(isProprietaire || isLocataire) && (
+        {(isPropertyOwner) && (
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-            {isProprietaire && (
-              <>
-                <select
-                  value={location.statut}
-                  onChange={handleStatutChange}
-                  className="form-control"
-                  style={{ width: 'auto', minWidth: '150px' }}
-                >
-                  <option value="RESERVE">Réservé</option>
-                  <option value="CONFIRME">Confirmé</option>
-                  <option value="PAYE">Payé</option>
-                  <option value="TERMINE">Terminé</option>
-                  <option value="ANNULE">Annulé</option>
-                </select>
-
-                {peutConfirmer && (
-                  <button
-                    onClick={handleConfirmer}
-                    className="btn btn-success btn-sm"
-                  >
-                    Confirmer
-                  </button>
-                )}
-              </>
+            {peutConfirmer && (
+              <button
+                onClick={handleConfirmer}
+                className="btn btn-success btn-sm"
+                disabled={confirmerMutation.isLoading}
+              >
+                {confirmerMutation.isLoading ? 'Confirmation...' : 'Confirmer la réservation'}
+              </button>
             )}
 
             {peutAnnuler && (
               <button
                 onClick={handleAnnuler}
                 className="btn btn-danger btn-sm"
+                disabled={annulerMutation.isLoading}
               >
                 Annuler
               </button>

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCreateLocation } from '../../hooks/useLocations';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuthContext as useAuth } from '../../context/AuthContext';
 import { appartementService } from '../../services/appartements';
 import { validators } from '../../utils/validators';
 import { formatters } from '../../utils/formatters';
@@ -43,14 +43,7 @@ const ReservationForm = ({ appartementSlug, appartement }) => {
     }
   }, [user]);
 
-  useEffect(() => {
-    if (formData.date_debut && formData.date_fin && appartement) {
-      verifierDisponibilite();
-      calculerTotal();
-    }
-  }, [formData.date_debut, formData.date_fin, appartement]);
-
-  const verifierDisponibilite = async () => {
+  const verifierDisponibilite = useCallback(async () => {
     if (!validators.dateRange(formData.date_debut, formData.date_fin)) {
       setDisponibilite(null);
       return;
@@ -66,20 +59,38 @@ const ReservationForm = ({ appartementSlug, appartement }) => {
     } catch (error) {
       console.error('Erreur vérification disponibilité:', error);
     }
-  };
+  }, [appartementSlug, formData.date_debut, formData.date_fin]);
 
-  const calculerTotal = () => {
+  const calculerTotal = useCallback(() => {
     const debut = new Date(formData.date_debut);
     const fin = new Date(formData.date_fin);
     const nbJours = Math.ceil((fin - debut) / (1000 * 60 * 60 * 24));
-    
+
     if (nbJours > 0 && appartement) {
-      const loyerJournalier = parseFloat(appartement.loyerMensuel) / 30;
-      setTotal(loyerJournalier * nbJours);
+      const moisReservation = Math.max(1, Math.ceil(nbJours / 30));
+      let cautionMois = Number(appartement.cautionMois || 0);
+
+      // Compatibilité legacy: si cautionMois absent, essayer de le déduire
+      if (cautionMois <= 0 && Number(appartement.loyerMensuel) > 0 && Number(appartement.caution) > 0) {
+        const cautionCalcule = Math.round(Number(appartement.caution) / Number(appartement.loyerMensuel));
+        if (cautionCalcule > 0) {
+          cautionMois = cautionCalcule;
+        }
+      }
+
+      const moisFactures = Math.max(moisReservation, cautionMois);
+      setTotal(Number(appartement.loyerMensuel) * moisFactures);
     } else {
       setTotal(null);
     }
-  };
+  }, [appartement, formData.date_debut, formData.date_fin]);
+
+  useEffect(() => {
+    if (formData.date_debut && formData.date_fin && appartement) {
+      verifierDisponibilite();
+      calculerTotal();
+    }
+  }, [formData.date_debut, formData.date_fin, appartement, verifierDisponibilite, calculerTotal]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -92,7 +103,22 @@ const ReservationForm = ({ appartementSlug, appartement }) => {
   const validate = () => {
     const newErrors = {};
 
-    // Les informations utilisateur sont automatiquement remplies, on valide juste les dates
+    // Valider les champs requis
+    if (!formData.nom_locataire?.trim()) {
+      newErrors.nom_locataire = 'Le nom du locataire est requis';
+    }
+
+    if (!formData.email_locataire?.trim()) {
+      newErrors.email_locataire = 'L\'email est requis';
+    } else if (!validators.email(formData.email_locataire)) {
+      newErrors.email_locataire = 'L\'email n\'est pas valide';
+    }
+
+    if (!formData.telephone_locataire?.trim()) {
+      newErrors.telephone_locataire = 'Le numéro de téléphone est requis';
+    }
+
+    // Valider les dates
     if (!validators.dateRange(formData.date_debut, formData.date_fin)) {
       newErrors.date_fin = 'La date de fin doit être postérieure à la date de début';
     }
@@ -126,7 +152,9 @@ const ReservationForm = ({ appartementSlug, appartement }) => {
         ...formData,
       };
       
-      console.log('Payload envoyé:', payload);
+      console.log('Payload envoyé (JSON):', JSON.stringify(payload, null, 2));
+      console.log('Appartement slug:', appartementSlug);
+      console.log('Form data:', JSON.stringify(formData, null, 2));
       
       await createMutation.mutateAsync(payload);
       
@@ -134,10 +162,18 @@ const ReservationForm = ({ appartementSlug, appartement }) => {
       navigate('/mes-reservations');
     } catch (error) {
       console.error('Erreur réservation complète:', error);
-      console.error('Détails erreur backend:', error.response?.data);
+      console.error('Détails erreur backend (full):', JSON.stringify(error.response?.data, null, 2));
+      console.error('Statut:', error.response?.status);
       
       if (error.response?.data) {
-        setErrors(error.response.data);
+        // Si c'est un tableau d'erreurs (DRF validation errors)
+        if (Array.isArray(error.response.data)) {
+          setErrors({ general: error.response.data.join(', ') });
+        } else if (typeof error.response.data === 'object') {
+          setErrors(error.response.data);
+        } else {
+          setErrors({ general: String(error.response.data) });
+        }
         toast.error('Vérifiez les champs du formulaire');
       }
     } finally {
@@ -147,6 +183,62 @@ const ReservationForm = ({ appartementSlug, appartement }) => {
 
   return (
     <form onSubmit={handleSubmit}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <div className="form-group">
+          <label htmlFor="nom_locataire" className="form-label">
+            Nom complet *
+          </label>
+          <input
+            type="text"
+            id="nom_locataire"
+            name="nom_locataire"
+            className={`form-control ${errors.nom_locataire ? 'error' : ''}`}
+            value={formData.nom_locataire}
+            onChange={handleChange}
+            required
+          />
+          {errors.nom_locataire && (
+            <div className="form-error">{errors.nom_locataire}</div>
+          )}
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="email_locataire" className="form-label">
+            Email *
+          </label>
+          <input
+            type="email"
+            id="email_locataire"
+            name="email_locataire"
+            className={`form-control ${errors.email_locataire ? 'error' : ''}`}
+            value={formData.email_locataire}
+            onChange={handleChange}
+            required
+          />
+          {errors.email_locataire && (
+            <div className="form-error">{errors.email_locataire}</div>
+          )}
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="telephone_locataire" className="form-label">
+          Téléphone *
+        </label>
+        <input
+          type="tel"
+          id="telephone_locataire"
+          name="telephone_locataire"
+          className={`form-control ${errors.telephone_locataire ? 'error' : ''}`}
+          value={formData.telephone_locataire}
+          onChange={handleChange}
+          required
+        />
+        {errors.telephone_locataire && (
+          <div className="form-error">{errors.telephone_locataire}</div>
+        )}
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
         <div className="form-group">
           <label htmlFor="date_debut" className="form-label">

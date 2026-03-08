@@ -20,18 +20,20 @@ class IsOwnerOrAdmin(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.user and request.user.is_staff:
             return True
-        
+
         if request.method in permissions.SAFE_METHODS:
             return True
-        
-        # Vérifier si l'utilisateur est le propriétaire
-        if hasattr(obj, 'user'):
-            return obj.user == request.user
-        elif hasattr(obj, 'locataire') and obj.locataire:
-            return obj.locataire.user == request.user
-        elif hasattr(obj, 'appartement') and obj.appartement.proprietaire:
-            return obj.appartement.proprietaire.user == request.user
-        
+
+        if hasattr(obj, 'user') and obj.user == request.user:
+            return True
+
+        if hasattr(obj, 'locataire') and obj.locataire and obj.locataire == request.user:
+            return True
+
+        if hasattr(obj, 'appartement') and obj.appartement and obj.appartement.proprietaire:
+            if obj.appartement.proprietaire == request.user:
+                return True
+
         return False
 
 
@@ -40,8 +42,7 @@ class IsProprietaire(permissions.BasePermission):
     Vérifie si l'utilisateur est un propriétaire
     """
     def has_permission(self, request, view):
-        return (request.user and request.user.is_authenticated 
-                and request.user.role == 'PROPRIETAIRE')
+        return bool(request.user and request.user.is_authenticated)
 
 
 class IsLocataire(permissions.BasePermission):
@@ -49,8 +50,7 @@ class IsLocataire(permissions.BasePermission):
     Vérifie si l'utilisateur est un locataire
     """
     def has_permission(self, request, view):
-        return (request.user and request.user.is_authenticated 
-                and request.user.role == 'LOCATAIRE')
+        return bool(request.user and request.user.is_authenticated)
 
 
 class CanManageAppartement(permissions.BasePermission):
@@ -60,12 +60,5 @@ class CanManageAppartement(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.user.is_staff:
             return True
-        
-        if request.user.role == 'PROPRIETAIRE':
-            try:
-                proprietaire = request.user.profil_proprietaire
-                return obj.proprietaire == proprietaire
-            except:
-                return False
-        
-        return False
+
+        return bool(obj.proprietaire == request.user)

@@ -20,12 +20,16 @@ from .views import (
     
     # Statistiques
     StatistiquesView,
+
+    # Users
+    UserViewSet,
 )
 
 # Router pour les ViewSets
 router = DefaultRouter()
 router.register(r'appartements', AppartementViewSet, basename='appartement')
 router.register(r'locations', LocationViewSet, basename='location')
+router.register(r'users', UserViewSet, basename='user')
 
 # URLs d'authentification
 auth_patterns = [

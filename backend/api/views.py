@@ -1,23 +1,26 @@
-from rest_framework import viewsets, status, generics, filters
+from rest_framework import viewsets, status, generics, filters, parsers
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser, IsAuthenticatedOrReadOnly
 from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from django.db.models import Q, Sum, Count
 from django.shortcuts import get_object_or_404
+from django.contrib.auth import get_user_model
+from typing import TYPE_CHECKING
+from django.contrib.auth.models import AbstractBaseUser
+
 from .models import (
     Appartement, Photo, Location, Favori,
-    User, Proprietaire, Locataire
 )
+
 from .serializers import (
     # Utilisateurs
     UserRegistrationSerializer, UserLoginSerializer,
     UserProfileSerializer, UserUpdateSerializer,
-    ChangePasswordSerializer, LogoutSerializer, ProprietaireSerializer,
-    LocataireSerializer,
-    
+    ChangePasswordSerializer, LogoutSerializer,
+
     # Appartements
     AppartementListSerializer, AppartementDetailSerializer,
     AppartementCreateUpdateSerializer, PhotoSerializer,
@@ -25,22 +28,26 @@ from .serializers import (
     # Locations
     LocationListSerializer, LocationDetailSerializer,
     LocationCreateSerializer, LocationUpdateSerializer,
-    
+
     # Favoris
-    FavoriSerializer, FavoriCreateSerializer,
-    
+    FavoriCreateSerializer,
+
     # Divers
     DisponibiliteSerializer
 )
 from .permissions import (
-    IsAdminOrReadOnly, IsOwnerOrAdmin, CanManageAppartement,
-    IsProprietaire, IsLocataire
+    IsAdminOrReadOnly, IsOwnerOrAdmin, IsProprietaire, IsLocataire, CanManageAppartement
 )
 from .pagination import StandardResultsSetPagination
 from .utils import send_reservation_confirmation_email
 import logging
 
+User = get_user_model()
+
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from .models import User
 
 
 # ========== VUES AUTHENTIFICATION ==========
@@ -51,23 +58,23 @@ class RegisterView(generics.GenericAPIView):
     """
     permission_classes = [AllowAny]
     serializer_class = UserRegistrationSerializer
-    
+
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
-        
+
         if serializer.is_valid():
             user = serializer.save()
-            
+
             from rest_framework_simplejwt.tokens import RefreshToken
             refresh = RefreshToken.for_user(user)
-            
+
             return Response({
                 'user': UserProfileSerializer(user).data,
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
                 'message': 'Inscription réussie'
             }, status=status.HTTP_201_CREATED)
-        
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -77,23 +84,23 @@ class LoginView(generics.GenericAPIView):
     """
     permission_classes = [AllowAny]
     serializer_class = UserLoginSerializer
-    
+
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
-        
+
         if serializer.is_valid():
             user = serializer.validated_data['user']
-            
+
             from rest_framework_simplejwt.tokens import RefreshToken
             refresh = RefreshToken.for_user(user)
-            
+
             return Response({
                 'user': UserProfileSerializer(user).data,
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
                 'message': 'Connexion réussie'
             })
-        
+
         return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
 
 
@@ -103,7 +110,7 @@ class LogoutView(generics.GenericAPIView):
     """
     permission_classes = [IsAuthenticated]
     serializer_class = LogoutSerializer
-    
+
     def post(self, request):
         try:
             serializer = self.get_serializer(data=request.data)
@@ -113,7 +120,7 @@ class LogoutView(generics.GenericAPIView):
                 from rest_framework_simplejwt.tokens import RefreshToken
                 token = RefreshToken(refresh_token)
                 token.blacklist()
-            
+
             return Response({'message': 'Déconnexion réussie'})
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -171,7 +178,7 @@ class AppartementViewSet(viewsets.ModelViewSet):
     ViewSet pour gérer les appartements
     """
     queryset = Appartement.objects.all()
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['disponible', 'ville', 'nb_pieces', 'proprietaire']
     search_fields = ['titre', 'description', 'adresse', 'ville']
@@ -179,6 +186,7 @@ class AppartementViewSet(viewsets.ModelViewSet):
     ordering = ['-date_creation']
     pagination_class = StandardResultsSetPagination
     lookup_field = 'slug'
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -186,6 +194,16 @@ class AppartementViewSet(viewsets.ModelViewSet):
         elif self.action in ['create', 'update', 'partial_update']:
             return AppartementCreateUpdateSerializer
         return AppartementDetailSerializer
+
+    def get_permissions(self):
+        if self.action in ['update', 'partial_update', 'destroy', 'upload_photo']:
+            return [IsAuthenticated(), CanManageAppartement()]
+        if self.action == 'create':
+            return [IsAuthenticated()]
+        return [IsAuthenticatedOrReadOnly()]
+
+    def perform_create(self, serializer):
+        serializer.save(proprietaire=self.request.user)
     
     def retrieve(self, request, *args, **kwargs):
         """Incrémente le compteur de vues à la consultation"""
@@ -195,7 +213,7 @@ class AppartementViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
     @action(detail=True, methods=['get'])
-    def locations(self, request, pk=None):
+    def locations(self, request, slug=None):
         """Locations d'un appartement"""
         appartement = self.get_object()
         locations = appartement.locations.filter(
@@ -211,7 +229,7 @@ class AppartementViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
-    def check_disponibilite(self, request, pk=None):
+    def check_disponibilite(self, request, slug=None):
         """Vérifier la disponibilité pour des dates"""
         appartement = self.get_object()
         date_debut = request.data.get('date_debut')
@@ -227,7 +245,7 @@ class AppartementViewSet(viewsets.ModelViewSet):
             appartement=appartement,
             date_debut__lte=date_fin,
             date_fin__gte=date_debut,
-            statut__in=['RESERVE', 'CONFIRME', 'PAYE']
+            statut__in=['CONFIRME', 'PAYE']
         )
         
         disponible = not locations_conflictuelles.exists()
@@ -243,17 +261,16 @@ class AppartementViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
-    def upload_photo(self, request, pk=None):
+    def upload_photo(self, request, slug=None):
         """Uploader une photo supplémentaire"""
         appartement = self.get_object()
         
         # Vérifier que l'utilisateur est le propriétaire
-        if request.user.est_proprietaire:
-            if appartement.proprietaire != request.user.profil_proprietaire:
-                return Response(
-                    {'error': 'Vous n\'êtes pas le propriétaire de cet appartement'},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+        if appartement.proprietaire != request.user:
+            return Response(
+                {'error': 'Vous n\'êtes pas le propriétaire de cet appartement'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         
         photo_file = request.FILES.get('photo')
         legende = request.data.get('legende', '')
@@ -288,45 +305,38 @@ class LocationViewSet(viewsets.ModelViewSet):
     ordering_fields = ['date_debut', 'date_fin', 'date_reservation', 'montant_total']
     ordering = ['-date_reservation']
     pagination_class = StandardResultsSetPagination
-    
+    serializer_class = LocationListSerializer
+
     def get_serializer_class(self):
-        if self.action == 'list':
-            return LocationListSerializer
-        elif self.action == 'create':
+        if self.action == 'create':
             return LocationCreateSerializer
-        elif self.action in ['update', 'partial_update']:
+        if self.action in ['update', 'partial_update']:
             return LocationUpdateSerializer
-        return LocationDetailSerializer
+        if self.action == 'retrieve':
+            return LocationDetailSerializer
+        return LocationListSerializer
     
+    def get_permissions(self):
+        """Permissions différentes selon l'action"""
+        if self.action == 'create':
+            return [IsAuthenticated()]
+        return [IsOwnerOrAdmin()]
+
     def get_queryset(self):
         queryset = super().get_queryset()
-        user = self.request.user
-        
+        user: AbstractBaseUser = self.request.user
+
         if not user.is_authenticated:
             return queryset.none()
-        
-        if user.is_staff:
+
+        if hasattr(user, 'is_staff') and user.is_staff:
             return queryset
-        
-        if user.est_proprietaire:
-            # Propriétaire voit les locations de ses appartements
-            try:
-                proprietaire = user.profil_proprietaire
-                return queryset.filter(
-                    appartement__in=proprietaire.appartements.all()
-                )
-            except:
-                return queryset.none()
-        
-        if user.est_locataire:
-            # Locataire voit ses propres locations
-            try:
-                locataire = user.profil_locataire
-                return queryset.filter(locataire=locataire)
-            except:
-                return queryset.filter(email_locataire=user.email)
-        
-        return queryset.none()
+
+        return queryset.filter(
+            Q(appartement__proprietaire=user) |
+            Q(locataire=user) |
+            Q(email_locataire=user.email)
+        ).distinct()
     
     def perform_create(self, serializer):
         location = serializer.save()
@@ -383,6 +393,20 @@ class LocationViewSet(viewsets.ModelViewSet):
         location.statut = 'ANNULE'
         location.save()
         
+        # Vérifier s'il y a d'autres locations actives pour cet appartement
+        autres_locations = Location.objects.filter(
+            appartement=location.appartement,
+            statut__in=['RESERVE', 'CONFIRME', 'PAYE']
+        ).exclude(pk=location.pk)
+        
+        # Si aucune autre location active, rendre l'appartement disponible
+        if not autres_locations.exists():
+            try:
+                location.appartement.disponible = True
+                location.appartement.save()
+            except Exception:
+                pass
+        
         serializer = LocationDetailSerializer(location)
         return Response(serializer.data)
     
@@ -395,19 +419,20 @@ class LocationViewSet(viewsets.ModelViewSet):
         if request.user.is_staff:
             allowed = True
         else:
-            # Autoriser si l'utilisateur est propriétaire et est le propriétaire de l'appartement
-            allowed = False
-            try:
-                if request.user.est_proprietaire and request.user.profil_proprietaire == location.appartement.proprietaire:
-                    allowed = True
-            except Exception:
-                allowed = False
+            # Autoriser si l'utilisateur est le propriétaire de l'appartement
+            allowed = location.appartement.proprietaire == request.user
 
         if not allowed:
             return Response({'error': 'Vous n\'êtes pas autorisé à confirmer cette réservation'}, status=status.HTTP_403_FORBIDDEN)
 
         if location.statut in ['ANNULE', 'TERMINE']:
             return Response({'error': 'Impossible de confirmer une location annulée ou terminée'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if location.statut != 'RESERVE':
+            return Response(
+                {'error': 'Seules les réservations en attente peuvent être confirmées'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         # Vérifier les conflits avec d'autres locations confirmées/payées
         conflits = Location.objects.filter(
@@ -421,7 +446,7 @@ class LocationViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Impossible de confirmer : des réservations confirmées existent déjà pour ces dates'}, status=status.HTTP_400_BAD_REQUEST)
 
         location.statut = 'CONFIRME'
-        location.date_confirmation = timezone.now().date()
+        location.date_confirmation = timezone.now()
         location.save()
 
         # Marquer l'appartement comme indisponible
@@ -444,12 +469,12 @@ class FavorisView(generics.GenericAPIView):
     """
     permission_classes = [IsAuthenticated, IsLocataire]
     serializer_class = FavoriCreateSerializer
-    
+
     def get(self, request):
         """Liste des favoris"""
         try:
-            locataire = request.user.profil_locataire
-            favoris = locataire.favoris.select_related('appartement').all()
+            locataire = request.user
+            favoris = Favori.objects.filter(locataire=locataire).select_related('appartement').all()
             # Sérialiser les appartements liés aux objets Favori (évite d'essayer de sérialiser des Favori avec AppartementListSerializer)
             appartements = [f.appartement for f in favoris if getattr(f, 'appartement', None) is not None]
 
@@ -460,23 +485,23 @@ class FavorisView(generics.GenericAPIView):
 
             serializer = AppartementListSerializer(appartements, many=True)
             return Response(serializer.data)
-        except Locataire.DoesNotExist:
+        except User.DoesNotExist:
             return Response([])
-    
+
     def post(self, request):
         """Ajouter/retirer un favori"""
         serializer = self.get_serializer(data=request.data)
-        
+
         if serializer.is_valid():
             try:
-                locataire = request.user.profil_locataire
+                locataire = request.user
                 appartement = get_object_or_404(
                     Appartement, 
                     id=serializer.validated_data['appartement_id']
                 )
-                
+
                 action = serializer.validated_data['action']
-                
+
                 if action == 'add':
                     favori, created = Favori.objects.get_or_create(
                         locataire=locataire,
@@ -489,17 +514,17 @@ class FavorisView(generics.GenericAPIView):
                         appartement=appartement
                     ).delete()
                     message = 'Appartement retiré des favoris'
-                
+
                 return Response({
                     'message': message,
                     'favoris_count': locataire.favoris.count()
                 })
-                
-            except Locataire.DoesNotExist:
+
+            except User.DoesNotExist:
                 return Response({
                     'error': 'Profil locataire non trouvé'
                 }, status=status.HTTP_404_NOT_FOUND)
-        
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -510,11 +535,11 @@ class ProprietaireDashboardView(APIView):
     Dashboard pour les propriétaires
     """
     permission_classes = [IsAuthenticated, IsProprietaire]
-    
+
     def get(self, request):
         try:
-            proprietaire = request.user.profil_proprietaire
-            appartements = proprietaire.appartements.all()
+            proprietaire = request.user
+            appartements = Appartement.objects.filter(proprietaire=proprietaire)
 
             # Statistiques générales
             total_appartements = appartements.count()
@@ -551,6 +576,7 @@ class ProprietaireDashboardView(APIView):
             top_appartements_data = [
                 {
                     'id': a.id,
+                    'slug': a.slug,
                     'titre': a.titre,
                     'nb_locations': a.nb_locations,
                     'revenus': locations.filter(
@@ -576,14 +602,14 @@ class ProprietaireDashboardView(APIView):
                 'revenus': {
                     'total': float(revenus_total),
                     'mois_en_cours': float(revenus_mois),
-                    'commission': float(revenus_total * (proprietaire.commission / 100)),
+                    'commission': 0.0,
                 },
                 'top_appartements': top_appartements_data,
             }
 
             return Response(stats)
-            
-        except Proprietaire.DoesNotExist:
+
+        except User.DoesNotExist:
             return Response({
                 'error': 'Profil propriétaire non trouvé'
             }, status=status.HTTP_404_NOT_FOUND)
@@ -594,12 +620,14 @@ class LocataireDashboardView(APIView):
     Dashboard pour les locataires
     """
     permission_classes = [IsAuthenticated, IsLocataire]
-    
+
     def get(self, request):
         try:
-            locataire = request.user.profil_locataire
-            locations = locataire.locations.all()
-            
+            locataire = request.user
+            locations = Location.objects.filter(
+                Q(locataire=locataire) | Q(email_locataire=locataire.email)
+            ).distinct()
+
             # Statistiques
             total_locations = locations.count()
             locations_a_venir = locations.filter(
@@ -622,7 +650,7 @@ class LocataireDashboardView(APIView):
             ).order_by('date_debut').first()
 
             # Favoris
-            favoris_count = locataire.favoris.count()
+            favoris_count = Favori.objects.filter(locataire=locataire).count()
 
             stats = {
                 'locations': {
@@ -638,8 +666,8 @@ class LocataireDashboardView(APIView):
             }
 
             return Response(stats)
-            
-        except Locataire.DoesNotExist:
+
+        except User.DoesNotExist:
             return Response({
                 'error': 'Profil locataire non trouvé'
             }, status=status.HTTP_404_NOT_FOUND)
@@ -720,3 +748,20 @@ class StatistiquesView(APIView):
         }
         
         return Response(stats)
+
+
+class UserViewSet(viewsets.ModelViewSet):
+    """
+    VueSet pour gérer les utilisateurs
+    """
+    queryset = User.objects.all()
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsAdminUser]
+
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    def plan(self, request, pk=None):
+        """
+        Endpoint pour récupérer le plan d'un utilisateur spécifique
+        """
+        user = self.get_object()
+        return Response({'plan': user.plan})

@@ -1,15 +1,25 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAppartements } from '../hooks/useAppartements';
+import { useAuthContext as useAuth } from '../context/AuthContext';
 import AppartementCarousel from '../components/appartements/AppartementCarousel';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const HomePage = () => {
+  const { isAuthenticated, user } = useAuth();
   const { data, isLoading, error } = useAppartements({ 
     disponible: true,
     ordering: '-date_creation',
     page_size: 6,
   });
+
+  const hasPhoneNumber = Boolean(user?.telephone?.trim());
+
+  const publishLink = !isAuthenticated
+    ? '/login?next=/appartements/ajouter'
+    : hasPhoneNumber
+      ? '/appartements/ajouter'
+      : '/profile';
 
   return (
     <>
@@ -26,7 +36,7 @@ const HomePage = () => {
               <Link to="/appartements" className="btn btn-lg">
                 Explorer les annonces
               </Link>
-              <Link to="/register" className="btn btn-outline btn-lg">
+              <Link to={publishLink} className="btn btn-outline btn-lg">
                 Publier une annonce
               </Link>
             </div>
@@ -85,7 +95,7 @@ const HomePage = () => {
               Publiez vos annonces gratuitement et suivez vos locations dans un tableau
               de bord clair et rapide.
             </p>
-            <Link to="/register" className="btn btn-primary btn-lg">
+            <Link to={publishLink} className="btn btn-primary btn-lg">
               Commencer maintenant
             </Link>
           </div>

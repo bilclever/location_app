@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppartement } from '../hooks/useAppartements';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthContext as useAuth } from '../context/AuthContext';
 import { formatters } from '../utils/formatters';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import PhotoManager from '../components/appartements/PhotoManager';
 
 const AppartementDetailPage = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { data: appartement, isLoading, error } = useAppartement(slug);
   const [selectedImage, setSelectedImage] = useState(null);
 
@@ -43,6 +44,45 @@ const AppartementDetailPage = () => {
     }
     navigate(`/reservations/${slug}`);
   };
+
+  const buildWhatsAppLink = () => {
+    const rawPhone = appartement?.proprietaireTelephone || '';
+    const digitsOnly = String(rawPhone).replace(/\D/g, '');
+
+    if (!digitsOnly) {
+      return null;
+    }
+
+    const normalizedPhone = digitsOnly.startsWith('228')
+      ? digitsOnly
+      : `228${digitsOnly}`;
+
+    const message = `Bonjour, je suis intéressé par l'annonce : ${appartement.titre}`;
+    return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`;
+  };
+
+  const whatsappLink = buildWhatsAppLink();
+  const cautionMois = Number(appartement?.cautionMois || 0);
+  const cautionAmount = cautionMois > 0
+    ? Number(appartement.loyerMensuel || 0) * cautionMois
+    : Number(appartement.caution || 0);
+
+  // Vérifier si l'utilisateur connecté est le propriétaire
+  let isOwner = false;
+  if (user && appartement) {
+    // Dans le modèle unifié, proprietaire est directement l'UUID de l'utilisateur
+    const proprietaireId = appartement.proprietaire;
+    const userId = user.id;
+    
+    // Debug: afficher les valeurs pour comprendre le format
+    console.log('User ID:', userId, 'Type:', typeof userId);
+    console.log('Proprietaire ID:', proprietaireId, 'Type:', typeof proprietaireId);
+    console.log('Comparaison stricte:', userId === proprietaireId);
+    console.log('Comparaison String:', String(userId) === String(proprietaireId));
+    
+    isOwner = String(userId) === String(proprietaireId);
+    console.log('isOwner:', isOwner);
+  }
 
   return (
     <div className="page detail">
@@ -129,7 +169,7 @@ const AppartementDetailPage = () => {
                   </div>
                   <div className="detail-item">
                     <span className="label">Caution</span>
-                    <span className="value">{formatters.price(appartement.caution)}</span>
+                    <span className="value">{cautionMois} mois ({formatters.price(cautionAmount)})</span>
                   </div>
                   <div className="detail-item">
                     <span className="label">Disponibilite</span>
@@ -164,8 +204,22 @@ const AppartementDetailPage = () => {
                     Cet appartement n'est pas disponible pour le moment.
                   </div>
                 )}
+
+                {whatsappLink && (
+                  <a
+                    href={whatsappLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-outline btn-block"
+                    style={{ marginTop: '0.75rem' }}
+                  >
+                    Discuter sur WhatsApp
+                  </a>
+                )}
               </div>
 
+              {/* Section propriétaire temporairement désactivée - à adapter au modèle unifié */}
+              {/*
               {appartement.proprietaire && (
                 <div className="booking-card" style={{ marginTop: '1rem' }}>
                   <h3>Proprietaire</h3>
@@ -177,8 +231,15 @@ const AppartementDetailPage = () => {
                   )}
                 </div>
               )}
+              */}
             </div>
           </div>
+
+          {isOwner && (
+            <div style={{ marginTop: '2rem' }}>
+              <PhotoManager appartement={appartement} />
+            </div>
+          )}
         </div>
       </section>
     </div>
