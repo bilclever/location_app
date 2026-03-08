@@ -20,6 +20,7 @@ from .serializers import (
     UserRegistrationSerializer, UserLoginSerializer,
     UserProfileSerializer, UserUpdateSerializer,
     ChangePasswordSerializer, LogoutSerializer,
+    UpdatePlanSerializer,
 
     # Appartements
     AppartementListSerializer, AppartementDetailSerializer,
@@ -169,6 +170,35 @@ class ChangePasswordView(generics.GenericAPIView):
             return Response({'message': 'Mot de passe changé avec succès'})
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UpdatePlanView(generics.GenericAPIView):
+    """
+    Mise à jour du plan utilisateur connecté
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = UpdatePlanSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        requested_plan = serializer.validated_data['plan']
+        user = request.user
+
+        if user.plan == requested_plan:
+            return Response({
+                'message': f'Votre plan est deja {requested_plan}.',
+                'user': UserProfileSerializer(user).data,
+            })
+
+        user.plan = requested_plan
+        user.save(update_fields=['plan'])
+
+        return Response({
+            'message': f'Plan mis a jour vers {requested_plan}.',
+            'user': UserProfileSerializer(user).data,
+        }, status=status.HTTP_200_OK)
 
 
 # ========== VUES APPARTEMENTS ==========

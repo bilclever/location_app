@@ -5,6 +5,8 @@ from django.db.models.signals import pre_save
 from decimal import Decimal
 from django.utils.html import format_html
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+from django.conf import settings
+import hashlib
 import uuid
 
 class UserManager(BaseUserManager):
@@ -331,3 +333,258 @@ def generate_slug(instance, **kwargs):
         instance.slug = slugify(instance.titre)
 
 pre_save.connect(generate_slug, sender=Appartement)
+
+
+class PremiumCategory(models.Model):
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='premium_categories')
+    code = models.CharField(max_length=50)
+    label = models.CharField(max_length=120)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('owner', 'code')
+        ordering = ['label']
+
+    def __str__(self):
+        return self.label
+
+
+class PremiumAppartementType(models.Model):
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='premium_appartement_types')
+    code = models.CharField(max_length=50)
+    label = models.CharField(max_length=120)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('owner', 'code')
+        ordering = ['label']
+
+    def __str__(self):
+        return self.label
+
+
+class PremiumBien(models.Model):
+    STATUT_CHOICES = [
+        ('LOUE', 'Loue'),
+        ('VACANT', 'Vacant'),
+        ('TRAVAUX', 'En travaux'),
+    ]
+
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='premium_biens')
+    category = models.ForeignKey(PremiumCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='biens')
+    appartement_type = models.ForeignKey(PremiumAppartementType, on_delete=models.SET_NULL, null=True, blank=True, related_name='biens')
+    titre = models.CharField(max_length=200)
+    adresse = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    equipements = models.JSONField(default=list, blank=True)
+    loyer_hc = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    charges = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='VACANT')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.titre
+
+
+class PremiumLocataire(models.Model):
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='premium_locataires')
+    nom = models.CharField(max_length=120)
+    prenoms = models.CharField(max_length=180)
+    email = models.EmailField()
+    telephone = models.CharField(max_length=30, blank=True)
+    date_naissance = models.DateField(null=True, blank=True)
+    profession = models.CharField(max_length=120, blank=True)
+    piece_identite_chiffree = models.TextField(blank=True)
+    garant_chiffre = models.TextField(blank=True)
+    historique_paiements = models.JSONField(default=list, blank=True)
+    date_depart = models.DateField(null=True, blank=True)
+    is_purged = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.nom} {self.prenoms}"
+
+    @staticmethod
+    def _hash_sensitive(raw_value):
+        if not raw_value:
+            return ''
+        salted = f"{settings.SECRET_KEY}:{raw_value}".encode('utf-8')
+        return hashlib.sha256(salted).hexdigest()
+
+    def set_piece_identite(self, raw_value):
+        self.piece_identite_chiffree = self._hash_sensitive(raw_value)
+
+    def set_garant(self, raw_value):
+        self.garant_chiffre = self._hash_sensitive(raw_value)
+
+    def purge_sensitive_data(self):
+        self.email = f"purged+{self.id}@deleted.local"
+        self.telephone = ''
+        self.date_naissance = None
+        self.profession = ''
+        self.piece_identite_chiffree = ''
+        self.garant_chiffre = ''
+        self.historique_paiements = []
+        self.is_purged = True
+        self.save(update_fields=[
+            'email', 'telephone', 'date_naissance', 'profession',
+            'piece_identite_chiffree', 'garant_chiffre', 'historique_paiements',
+            'is_purged', 'updated_at'
+        ])
+
+
+class PremiumBail(models.Model):
+    STATUT_CHOICES = [
+        ('ACTIF', 'Actif'),
+        ('TERMINE', 'Termine'),
+        ('RESILIE', 'Resilie'),
+    ]
+
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='premium_baux')
+    bien = models.ForeignKey(PremiumBien, on_delete=models.CASCADE, related_name='baux')
+    locataire = models.ForeignKey(PremiumLocataire, on_delete=models.CASCADE, related_name='baux')
+    date_entree = models.DateField()
+    date_sortie = models.DateField(null=True, blank=True)
+    revision_annuelle = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    depot_garantie = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='ACTIF')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class PremiumComptableEcriture(models.Model):
+    TYPE_CHOICES = [('REVENU', 'Revenu'), ('DEPENSE', 'Depense')]
+    SOURCE_CHOICES = [('MANUEL', 'Manuel'), ('AUTO_LOYER', 'Automatique Loyer')]
+
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='premium_ecritures')
+    bien = models.ForeignKey(PremiumBien, on_delete=models.SET_NULL, null=True, blank=True, related_name='ecritures')
+    bail = models.ForeignKey(PremiumBail, on_delete=models.SET_NULL, null=True, blank=True, related_name='ecritures')
+    type_ecriture = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='MANUEL')
+    libelle = models.CharField(max_length=255)
+    categorie = models.CharField(max_length=120, blank=True)
+    date_operation = models.DateField()
+    montant = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date_operation', '-created_at']
+
+
+class PremiumPayment(models.Model):
+    STATUT_CHOICES = [('PAYE', 'Paye'), ('PARTIEL', 'Partiel'), ('IMPAYE', 'Impaye')]
+
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='premium_payments')
+    bail = models.ForeignKey(PremiumBail, on_delete=models.CASCADE, related_name='payments')
+    date_paiement = models.DateField()
+    periode_debut = models.DateField()
+    periode_fin = models.DateField()
+    montant = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
+    statut = models.CharField(max_length=10, choices=STATUT_CHOICES, default='PAYE')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date_paiement', '-created_at']
+
+    def save(self, *args, **kwargs):
+        is_create = self.pk is None
+        old_data = None
+
+        if not is_create:
+            previous = PremiumPayment.objects.filter(pk=self.pk).first()
+            if previous is not None:
+                old_data = {
+                    'date_paiement': previous.date_paiement.isoformat() if previous.date_paiement else None,
+                    'periode_debut': previous.periode_debut.isoformat() if previous.periode_debut else None,
+                    'periode_fin': previous.periode_fin.isoformat() if previous.periode_fin else None,
+                    'montant': str(previous.montant),
+                    'statut': previous.statut,
+                }
+
+        super().save(*args, **kwargs)
+
+        new_data = {
+            'date_paiement': self.date_paiement.isoformat() if self.date_paiement else None,
+            'periode_debut': self.periode_debut.isoformat() if self.periode_debut else None,
+            'periode_fin': self.periode_fin.isoformat() if self.periode_fin else None,
+            'montant': str(self.montant),
+            'statut': self.statut,
+        }
+
+        PremiumPaymentAuditLog.objects.create(
+            payment=self,
+            owner=self.owner,
+            actor=self.owner,
+            action='INSERT' if is_create else 'UPDATE',
+            old_data=old_data,
+            new_data=new_data,
+        )
+
+        if is_create:
+            PremiumComptableEcriture.objects.create(
+                owner=self.owner,
+                bien=self.bail.bien,
+                bail=self.bail,
+                type_ecriture='REVENU',
+                source='AUTO_LOYER',
+                libelle='Loyer percu',
+                categorie='LOYER',
+                date_operation=self.date_paiement,
+                montant=self.montant,
+                metadata={'payment_id': self.id},
+            )
+
+    def delete(self, *args, **kwargs):
+        old_data = {
+            'date_paiement': self.date_paiement.isoformat() if self.date_paiement else None,
+            'periode_debut': self.periode_debut.isoformat() if self.periode_debut else None,
+            'periode_fin': self.periode_fin.isoformat() if self.periode_fin else None,
+            'montant': str(self.montant),
+            'statut': self.statut,
+        }
+
+        payment_id = self.id
+        owner = self.owner
+
+        super().delete(*args, **kwargs)
+
+        PremiumPaymentAuditLog.objects.create(
+            payment=None,
+            owner=owner,
+            actor=owner,
+            action='DELETE',
+            old_data={**old_data, 'payment_id': payment_id},
+            new_data=None,
+        )
+
+
+class PremiumPaymentAuditLog(models.Model):
+    ACTION_CHOICES = [('INSERT', 'Insert'), ('UPDATE', 'Update'), ('DELETE', 'Delete')]
+
+    payment = models.ForeignKey(PremiumPayment, on_delete=models.SET_NULL, related_name='audit_logs', null=True, blank=True)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='premium_payment_audit_logs')
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='premium_payment_audit_actor_logs')
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    old_data = models.JSONField(null=True, blank=True)
+    new_data = models.JSONField(null=True, blank=True)
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-changed_at']

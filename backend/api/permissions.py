@@ -62,3 +62,22 @@ class CanManageAppartement(permissions.BasePermission):
             return True
 
         return bool(obj.proprietaire == request.user)
+
+
+class IsPremiumUser(permissions.BasePermission):
+    """
+    Acces reserve aux utilisateurs premium.
+    Les admins conservent l'acces.
+    """
+
+    message = "Cette fonctionnalite est reservee au plan premium."
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+
+        if getattr(user, 'is_staff', False):
+            return True
+
+        return getattr(user, 'plan', 'free') == 'premium'

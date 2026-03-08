@@ -19,6 +19,7 @@ import MesReservationsPage from './pages/MesReservationsPage';
 import FavorisPage from './pages/FavorisPage';
 import DashboardPage from './pages/DashboardPage';
 import AdminPage from './pages/AdminPage';
+import PremiumPage from './pages/PremiumPage';
 import './assets/styles/main.scss';
 
 function App() {
@@ -77,6 +78,12 @@ function App() {
               <Route path="/admin" element={
                 <PrivateRoute>
                   <AdminPage />
+                </PrivateRoute>
+              } />
+
+              <Route path="/premium" element={
+                <PrivateRoute>
+                  <PremiumPage />
                 </PrivateRoute>
               } />
               

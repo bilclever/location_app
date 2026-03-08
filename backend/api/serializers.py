@@ -437,3 +437,10 @@ class LogoutSerializer(serializers.Serializer):
     Sérialiseur pour la déconnexion
     """
     refresh_token = serializers.CharField()
+
+
+class UpdatePlanSerializer(serializers.Serializer):
+    """
+    Sérialiseur pour la mise à jour du plan utilisateur
+    """
+    plan = serializers.ChoiceField(choices=['free', 'premium'])

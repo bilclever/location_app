@@ -32,6 +32,7 @@ export const adapters = {
       fullName: data.full_name,
       telephone: data.telephone,
       role: data.role,
+      plan: data.plan || 'free',
       adresse: data.adresse,
       photoProfil: withMediaBase(data.photo_profil),
       dateNaissance: data.date_naissance,

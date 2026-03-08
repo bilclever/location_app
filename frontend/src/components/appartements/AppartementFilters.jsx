@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { VILLES, NB_PIECES, PRIX_MAX } from '../../utils/constants';
+import { VILLES, NB_PIECES, PRIX_MAX, DEFAULT_APPARTEMENT_TYPES } from '../../utils/constants';
 
 const AppartementFilters = ({ filters, onFilterChange }) => {
   const [localFilters, setLocalFilters] = useState(filters);
@@ -73,6 +73,24 @@ const AppartementFilters = ({ filters, onFilterChange }) => {
               <option value="">Tous</option>
               {NB_PIECES.map(nb => (
                 <option key={nb} value={nb}>{nb} pièce{nb > 1 ? 's' : ''}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="appartement_type" className="form-label">
+              Type d appartement
+            </label>
+            <select
+              id="appartement_type"
+              name="appartement_type"
+              className="form-control"
+              value={localFilters.appartement_type || ''}
+              onChange={handleChange}
+            >
+              <option value="">Tous</option>
+              {DEFAULT_APPARTEMENT_TYPES.map(type => (
+                <option key={type.code} value={type.code}>{type.label}</option>
               ))}
             </select>
           </div>

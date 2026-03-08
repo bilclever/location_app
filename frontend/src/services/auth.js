@@ -50,6 +50,12 @@ export const authService = {
     return response.data;
   },
 
+  // POST /api/auth/plan/
+  async updatePlan(plan) {
+    const response = await api.post('/auth/plan/', { plan });
+    return response.data;
+  },
+
   // POST /api/auth/token/refresh/
   async refreshToken(refreshToken) {
     const response = await api.post('/auth/token/refresh/', { refresh: refreshToken });

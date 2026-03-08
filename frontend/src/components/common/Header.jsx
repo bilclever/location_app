@@ -3,10 +3,11 @@ import { createPortal } from 'react-dom';
 import { Link, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthContext as useAuth } from '../../context/AuthContext';
 import logo from '../../assets/images/logo1.png';
-import { VILLES, NB_PIECES, PRIX_MAX } from '../../utils/constants';
+import { VILLES, NB_PIECES, PRIX_MAX, DEFAULT_APPARTEMENT_TYPES } from '../../utils/constants';
 
 const Header = () => {
   const { user, isAuthenticated, logout } = useAuth();
+  const isPremium = user?.plan === 'premium';
   const navigate = useNavigate();
     const [searchParams] = useSearchParams();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -153,6 +154,24 @@ const Header = () => {
           </div>
 
           <div className="form-group">
+            <label htmlFor="appartement_type" className="form-label">
+              Type d appartement
+            </label>
+            <select
+              id="appartement_type"
+              name="appartement_type"
+              className="form-control"
+              value={localFilters.appartement_type || ''}
+              onChange={handleFilterChange}
+            >
+              <option value="">Tous</option>
+              {DEFAULT_APPARTEMENT_TYPES.map(type => (
+                <option key={type.code} value={type.code}>{type.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
             <label htmlFor="loyer_max" className="form-label">
               Loyer max (CFA)
             </label>
@@ -264,6 +283,12 @@ const Header = () => {
               <NavLink to="/favoris" className="header-link" onClick={() => setIsMenuOpen(false)}>
                 Favoris
               </NavLink>
+
+              {isPremium && (
+                <NavLink to="/premium" className="header-link" onClick={() => setIsMenuOpen(false)}>
+                  Premium
+                </NavLink>
+              )}
               
               {user?.role === 'ADMIN' && (
                 <NavLink to="/admin" className="header-link" onClick={() => setIsMenuOpen(false)}>

@@ -10,7 +10,7 @@ from .views import (
     
     # Auth
     RegisterView, LoginView, LogoutView, ProfileView,
-    ChangePasswordView,
+    ChangePasswordView, UpdatePlanView,
     
     # Favoris
     FavorisView,
@@ -24,12 +24,31 @@ from .views import (
     # Users
     UserViewSet,
 )
+from .premium_views import (
+    PremiumCategoryViewSet,
+    PremiumAppartementTypeViewSet,
+    PremiumBienViewSet,
+    PremiumLocataireViewSet,
+    PremiumBailViewSet,
+    PremiumComptaEntryViewSet,
+    PremiumPaymentViewSet,
+    PremiumDashboardView,
+    PremiumPaymentAuditLogListView,
+    PremiumRgpdPurgeView,
+)
 
 # Router pour les ViewSets
 router = DefaultRouter()
 router.register(r'appartements', AppartementViewSet, basename='appartement')
 router.register(r'locations', LocationViewSet, basename='location')
 router.register(r'users', UserViewSet, basename='user')
+router.register(r'premium/categories', PremiumCategoryViewSet, basename='premium-category')
+router.register(r'premium/appartement-types', PremiumAppartementTypeViewSet, basename='premium-appartement-type')
+router.register(r'premium/biens', PremiumBienViewSet, basename='premium-bien')
+router.register(r'premium/locataires', PremiumLocataireViewSet, basename='premium-locataire')
+router.register(r'premium/baux', PremiumBailViewSet, basename='premium-bail')
+router.register(r'premium/comptabilite/ecritures', PremiumComptaEntryViewSet, basename='premium-compta-entry')
+router.register(r'premium/payments', PremiumPaymentViewSet, basename='premium-payment')
 
 # URLs d'authentification
 auth_patterns = [
@@ -38,6 +57,7 @@ auth_patterns = [
     path('logout/', LogoutView.as_view(), name='auth_logout'),
     path('profile/', ProfileView.as_view(), name='auth_profile'),
     path('change-password/', ChangePasswordView.as_view(), name='auth_change_password'),
+    path('plan/', UpdatePlanView.as_view(), name='auth_plan_update'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
 
@@ -49,6 +69,11 @@ role_patterns = [
 ]
 
 urlpatterns = [
+    # Premium (custom endpoints before router to avoid route conflicts)
+    path('premium/dashboard/', PremiumDashboardView.as_view(), name='premium_dashboard'),
+    path('premium/payments/audit-logs/', PremiumPaymentAuditLogListView.as_view(), name='premium_payment_audit_logs'),
+    path('premium/rgpd/purge/', PremiumRgpdPurgeView.as_view(), name='premium_rgpd_purge'),
+
     # API principale
     path('', include(router.urls)),
     

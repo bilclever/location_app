@@ -1319,9 +1319,141 @@ a {
 .carousel-track {
   display: flex;
   gap: 20px;
-  
+
   @media (max-width: $breakpoint-md) {
     gap: 16px;
+  }
+}
+
+// Premium workspace
+.premium-page {
+  margin: $spacing-8 0;
+  display: grid;
+  gap: $spacing-6;
+}
+
+.premium-header {
+  background: linear-gradient(135deg, rgba($secondary, 0.16), rgba($primary, 0.12));
+  border: 1px solid rgba($gray-50, 0.1);
+  border-radius: $radius-xl;
+  padding: $spacing-6;
+
+  p {
+    margin: $spacing-2 0 0;
+  }
+}
+
+.premium-grid {
+  display: grid;
+  gap: $spacing-4;
+}
+
+.premium-summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.premium-two-col {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.premium-card {
+  background: rgba(255, 255, 255, 0.98);
+  color: $gray-900;
+  border-radius: $radius-xl;
+  border: 1px solid rgba($gray-200, 0.8);
+  padding: $spacing-5;
+  box-shadow: $shadow-md;
+
+  h3, h4 {
+    color: $gray-900;
+    margin-bottom: $spacing-3;
+  }
+
+  p {
+    color: $gray-700;
+  }
+}
+
+.premium-inline-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $spacing-2;
+  margin-bottom: $spacing-4;
+}
+
+.premium-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  textarea,
+  button {
+    grid-column: 1 / -1;
+  }
+}
+
+.premium-list {
+  list-style: none;
+  display: grid;
+  gap: $spacing-2;
+}
+
+.premium-list li {
+  padding: $spacing-2 $spacing-3;
+  border-radius: $radius;
+  background: rgba($gray-100, 0.7);
+}
+
+.premium-table-wrap {
+  overflow-x: auto;
+  margin-top: $spacing-4;
+}
+
+.premium-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 540px;
+
+  th,
+  td {
+    text-align: left;
+    padding: $spacing-2;
+    border-bottom: 1px solid rgba($gray-200, 0.9);
+  }
+
+  th {
+    font-size: $font-size-xs;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: $gray-600;
+  }
+}
+
+.premium-compact-list {
+  display: grid;
+  gap: $spacing-2;
+  margin-top: $spacing-4;
+}
+
+.premium-compact-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-2 $spacing-3;
+  border-radius: $radius;
+  background: rgba($gray-100, 0.8);
+
+  span {
+    color: $gray-600;
+    font-size: $font-size-xs;
+  }
+}
+
+@media (max-width: $breakpoint-md) {
+  .premium-summary-grid,
+  .premium-two-col,
+  .premium-form-grid,
+  .premium-inline-form {
+    grid-template-columns: 1fr;
   }
 }
 

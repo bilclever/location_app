@@ -3,8 +3,9 @@ import { useAuthContext as useAuth } from '../../context/AuthContext';
 import { validators } from '../../utils/validators';
 
 const ProfileForm = ({ user }) => {
-  const { updateProfile } = useAuth();
-  
+  const { updateProfileAsync, updatePlanAsync, isUpdatingPlan } = useAuth();
+  const isPremium = user?.plan === 'premium';
+
   const [formData, setFormData] = useState({
     first_name: user?.firstName || '',
     last_name: user?.lastName || '',
@@ -67,7 +68,7 @@ const ProfileForm = ({ user }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -79,29 +80,33 @@ const ProfileForm = ({ user }) => {
 
     try {
       let dataToSend;
-      
+
       if (photo) {
-        // Envoyer en FormData si photo présente
         const formDataToSend = new FormData();
         Object.keys(formData).forEach(key => {
           formDataToSend.append(key, formData[key]);
         });
         formDataToSend.append('photo_profil', photo);
         dataToSend = formDataToSend;
-        console.log('Envoi profil avec photo (FormData)');
       } else {
-        // Envoyer en JSON si pas de photo
         dataToSend = formData;
-        console.log('Envoi profil sans photo (JSON):', dataToSend);
       }
 
-      await updateProfile(dataToSend);
+      await updateProfileAsync(dataToSend);
     } catch (error) {
       if (error.response?.data) {
         setErrors(error.response.data);
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleUpgradePlan = async () => {
+    try {
+      await updatePlanAsync('premium');
+    } catch (error) {
+      // handled in hook toast
     }
   };
 
@@ -249,6 +254,24 @@ const ProfileForm = ({ user }) => {
           />
           Recevoir les notifications par email
         </label>
+      </div>
+
+      <div className="card" style={{ marginBottom: '1rem', background: '#f8fafc' }}>
+        <div className="card-body" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+          <div>
+            <strong>Plan actuel:</strong> {isPremium ? 'Premium' : 'Gratuit'}
+          </div>
+          {!isPremium && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleUpgradePlan}
+              disabled={isUpdatingPlan}
+            >
+              {isUpdatingPlan ? 'Activation...' : 'Passer au plan Premium'}
+            </button>
+          )}
+        </div>
       </div>
 
       <button

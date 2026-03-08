@@ -34,6 +34,7 @@ export const useAuth = () => {
       telephone: null,
       adresse: null,
       photoProfil: metadata.avatar_url || null,
+      plan: metadata.plan || 'free',
       favoris: [],
     };
   }, []);
@@ -339,6 +340,21 @@ export const useAuth = () => {
     }
   );
 
+  const updatePlanMutation = useMutation(
+    (plan) => authService.updatePlan(plan),
+    {
+      onSuccess: (data) => {
+        const updatedUser = adapters.userProfile(data.user);
+        queryClient.setQueryData('user', updatedUser);
+        toast.success(data.message || 'Plan mis a jour');
+      },
+      onError: (error) => {
+        const message = error.response?.data?.error || 'Erreur de mise a jour du plan';
+        toast.error(message);
+      },
+    }
+  );
+
   return {
     user,
     isLoading,
@@ -354,10 +370,13 @@ export const useAuth = () => {
     updateProfileAsync: updateProfileMutation.mutateAsync,
     changePassword: changePasswordMutation.mutate,
     changePasswordAsync: changePasswordMutation.mutateAsync,
+    updatePlan: updatePlanMutation.mutate,
+    updatePlanAsync: updatePlanMutation.mutateAsync,
     isLoggingIn: loginMutation.isLoading,
     isRegistering: registerMutation.isLoading,
     isLoggingOut: logoutMutation.isLoading,
     isUpdatingProfile: updateProfileMutation.isLoading,
     isChangingPassword: changePasswordMutation.isLoading,
+    isUpdatingPlan: updatePlanMutation.isLoading,
   };
 };
