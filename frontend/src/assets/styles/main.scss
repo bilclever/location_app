@@ -383,7 +383,7 @@ a {
   color: #1a1511;
   background: linear-gradient(135deg, $primary, $primary-light);
   border: 1px solid transparent;
-  border-radius: $radius;
+  border-radius: $radius-lg;
   cursor: pointer;
   transition: all $transition-fast $transition-timing;
   
@@ -1330,6 +1330,13 @@ a {
   margin: $spacing-8 0;
   display: grid;
   gap: $spacing-6;
+  max-width: 100%;
+  overflow: hidden;
+
+  @media (max-width: $breakpoint-md) {
+    margin: $spacing-4 0;
+    gap: $spacing-4;
+  }
 }
 
 .premium-header {
@@ -1341,19 +1348,40 @@ a {
   p {
     margin: $spacing-2 0 0;
   }
+
+  @media (max-width: $breakpoint-md) {
+    padding: $spacing-4;
+  }
 }
 
 .premium-grid {
   display: grid;
-  gap: $spacing-4;
+  gap: $spacing-5;
+  width: 100%;
+
+  @media (max-width: $breakpoint-md) {
+    gap: $spacing-3;
+  }
 }
 
 .premium-summary-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: $breakpoint-md) {
+    grid-template-columns: 1fr;
+  }
 }
 
 .premium-two-col {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (max-width: $breakpoint-md) {
+    grid-template-columns: 1fr;
+  }
 }
 
 .premium-card {
@@ -1361,32 +1389,69 @@ a {
   color: $gray-900;
   border-radius: $radius-xl;
   border: 1px solid rgba($gray-200, 0.8);
-  padding: $spacing-5;
+  padding: $spacing-6;
   box-shadow: $shadow-md;
+  width: 100%;
+  box-sizing: border-box;
 
   h3, h4 {
     color: $gray-900;
-    margin-bottom: $spacing-3;
+    margin-bottom: $spacing-4;
+    font-size: $font-size-xl;
+
+    @media (max-width: $breakpoint-md) {
+      font-size: $font-size-lg;
+      margin-bottom: $spacing-3;
+    }
   }
 
   p {
     color: $gray-700;
+    margin-bottom: $spacing-2;
+
+    @media (max-width: $breakpoint-md) {
+      font-size: $font-size-sm;
+    }
   }
 }
 
 .premium-inline-form {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: $spacing-2;
-  margin-bottom: $spacing-4;
+  gap: $spacing-3;
+  margin-bottom: $spacing-5;
+  width: 100%;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: $spacing-2;
+  }
+
+  @media (max-width: $breakpoint-md) {
+    grid-template-columns: 1fr;
+    gap: $spacing-2;
+    margin-bottom: $spacing-4;
+  }
 }
 
 .premium-form-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $spacing-3;
+  width: 100%;
 
   textarea,
   button {
     grid-column: 1 / -1;
+  }
+
+  @media (max-width: $breakpoint-md) {
+    grid-template-columns: 1fr;
+    gap: $spacing-2;
+
+    textarea,
+    button {
+      grid-column: 1 / -1;
+    }
   }
 }
 
@@ -1404,19 +1469,26 @@ a {
 
 .premium-table-wrap {
   overflow-x: auto;
-  margin-top: $spacing-4;
+  margin-top: $spacing-5;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 .premium-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 540px;
+  min-width: 100%;
 
   th,
   td {
     text-align: left;
-    padding: $spacing-2;
+    padding: $spacing-3;
     border-bottom: 1px solid rgba($gray-200, 0.9);
+
+    @media (max-width: $breakpoint-md) {
+      padding: $spacing-2;
+      font-size: $font-size-xs;
+    }
   }
 
   th {
@@ -1424,38 +1496,73 @@ a {
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: $gray-600;
+    background-color: rgba($gray-100, 0.5);
+  }
+
+  td {
+    color: $gray-900;
+  }
+
+  tbody tr {
+    transition: background-color $transition-fast $transition-timing;
+
+    &.is-clickable {
+      cursor: pointer;
+
+      &:hover {
+        background-color: rgba($primary, 0.08);
+      }
+    }
   }
 }
 
 .premium-compact-list {
   display: grid;
-  gap: $spacing-2;
-  margin-top: $spacing-4;
+  gap: $spacing-3;
+  margin-top: $spacing-5;
+  width: 100%;
 }
 
 .premium-compact-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: $spacing-2;
-  padding: $spacing-2 $spacing-3;
-  border-radius: $radius;
+  gap: $spacing-3;
+  padding: $spacing-3 $spacing-4;
+  border-radius: $radius-lg;
   background: rgba($gray-100, 0.8);
+  width: 100%;
+  box-sizing: border-box;
+  flex-wrap: wrap;
+
+  strong {
+    color: $gray-900;
+    font-size: $font-size-sm;
+    min-width: 0;
+    word-break: break-word;
+
+    @media (max-width: $breakpoint-md) {
+      font-size: $font-size-xs;
+    }
+  }
 
   span {
     color: $gray-600;
     font-size: $font-size-xs;
+    margin-left: auto;
+    text-align: right;
+
+    @media (max-width: $breakpoint-md) {
+      font-size: $font-size-xs;
+      width: 100%;
+      text-align: left;
+      margin-left: 0;
+      margin-top: $spacing-1;
+    }
   }
 }
 
-@media (max-width: $breakpoint-md) {
-  .premium-summary-grid,
-  .premium-two-col,
-  .premium-form-grid,
-  .premium-inline-form {
-    grid-template-columns: 1fr;
-  }
-}
+// Media queries already included in individual classes above
 
 .carousel-item {
   flex: 0 0 calc(25% - 15px);
@@ -1588,15 +1695,59 @@ a {
   }
   
   .info {
-    background-color: rgba(255, 255, 255, 0.9);
+    background-color: #ffffff;
     border-radius: $radius-lg;
     padding: $spacing-6;
-    border: 1px solid rgba($gray-200, 0.7);
+    border: 1px solid $gray-200;
     color: $gray-900;
     
     h3 {
       font-size: $font-size-xl;
       margin-bottom: $spacing-4;
+      color: $gray-900;
+    }
+
+    .appartement-headline {
+      margin-bottom: $spacing-6;
+      padding-bottom: $spacing-4;
+      border-bottom: 1px solid $gray-200;
+
+      .headline-title {
+        font-size: clamp(1.5rem, 2.5vw, 2rem);
+        margin-bottom: $spacing-2;
+        font-family: $font-family-display;
+        color: $gray-900;
+      }
+
+      .headline-price {
+        font-size: $font-size-3xl;
+        font-weight: 700;
+        color: $primary;
+        margin-bottom: $spacing-2;
+
+        small {
+          font-size: $font-size-sm;
+          font-weight: 500;
+          color: $gray-500;
+          margin-left: $spacing-1;
+        }
+      }
+
+      .headline-address,
+      .headline-city {
+        color: $gray-700;
+        margin: 0;
+      }
+
+      .headline-city {
+        margin-bottom: $spacing-3;
+      }
+
+      .headline-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $spacing-2;
+      }
     }
     
     .detail-item {
@@ -1621,16 +1772,17 @@ a {
   }
   
   .booking-card {
-    background-color: rgba(255, 255, 255, 0.92);
+    background-color: #ffffff;
     border-radius: $radius-lg;
     padding: $spacing-6;
     box-shadow: $shadow;
-    border: 1px solid rgba($gray-200, 0.7);
+    border: 1px solid $gray-200;
     color: $gray-900;
     
     h3 {
       font-size: $font-size-xl;
       margin-bottom: $spacing-4;
+      color: $gray-900;
     }
     
     .price-display {
@@ -1654,6 +1806,89 @@ a {
       border-top: 2px solid $gray-200;
       border-bottom: 2px solid $gray-200;
       font-weight: 600;
+    }
+  }
+}
+
+.appartement-detail-surface {
+  padding-top: $spacing-3;
+  background-color: #ffffff;
+  color: $gray-900;
+  border-radius: $radius-lg;
+  padding: $spacing-6;
+
+  h1, h2, h3, h4, h5, h6 {
+    color: $gray-900;
+  }
+
+  p {
+    color: $gray-800;
+  }
+
+  .detail-back-nav {
+    margin-bottom: 0.35rem;
+  }
+
+  .detail-back-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.35rem 0.5rem;
+    font-size: 1.5rem;
+    color: #666;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-top: -0.85rem;
+  }
+}
+
+.owner-photo-manager {
+  margin-top: 2rem;
+}
+
+.owner-photo-manager-desktop {
+  margin-top: 1rem;
+}
+
+.owner-photo-manager-mobile {
+  display: none;
+}
+
+.premium-finances {
+  margin-top: 2rem;
+}
+
+.premium-finances-desktop {
+  margin-top: 3.9rem;
+}
+
+.premium-finances-mobile {
+  display: none;
+}
+
+@media (min-width: calc($breakpoint-md + 1px)) {
+  .appartement-details {
+    .info {
+      .appartement-headline {
+        .headline-title {
+          font-size: clamp(1.3rem, 1.7vw, 1.6rem);
+        }
+
+        .headline-price {
+          font-size: $font-size-2xl;
+        }
+
+        .headline-address,
+        .headline-city {
+          font-size: $font-size-sm;
+        }
+
+        .headline-badges .badge {
+          font-size: 0.75rem;
+          padding: 0.2rem 0.45rem;
+        }
+      }
     }
   }
 }
@@ -1801,6 +2036,40 @@ a {
   
   .page {
     padding: $spacing-4 0;
+  }
+
+  .page.appartement-detail-page {
+    padding-top: 0;
+  }
+
+  .appartement-detail-surface {
+    padding-top: 0.35rem;
+
+    .detail-back-nav {
+      margin-bottom: 0.2rem;
+    }
+
+    .detail-back-btn {
+      margin-top: -0.7rem;
+      padding-top: 0.2rem;
+      padding-bottom: 0.2rem;
+    }
+  }
+
+  .owner-photo-manager-desktop {
+    display: none;
+  }
+
+  .owner-photo-manager-mobile {
+    display: block;
+  }
+
+  .premium-finances-desktop {
+    display: none;
+  }
+
+  .premium-finances-mobile {
+    display: block;
   }
 
   .hero {
@@ -2092,6 +2361,10 @@ a {
     padding: $spacing-8 0;
   }
 
+  .appartement-detail-surface {
+    padding-top: 0.15rem;
+  }
+
   .hero {
     padding: $spacing-10 0 $spacing-8;
   }
@@ -2218,4 +2491,219 @@ button[title="Retour"] span {
     line-height: 1.3;
     margin-bottom: $spacing-2;
   }
+}
+
+// ==========================================
+// Reservation Management Styles
+// ==========================================
+
+.reservation-requests {
+  margin-top: $spacing-6;
+  padding: $spacing-6;
+  background-color: #fff;
+  border: 1px solid $gray-200;
+  border-radius: $radius-md;
+  box-shadow: $shadow-md;
+}
+
+.reservation-card {
+  padding: $spacing-4;
+  margin-bottom: $spacing-4;
+  background-color: $gray-50;
+  border: 1px solid $gray-200;
+  border-radius: $radius-md;
+  transition: transform $transition-fast $transition-timing, box-shadow $transition-fast $transition-timing;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: $shadow-lg;
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.reservation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-3;
+  padding-bottom: $spacing-2;
+  border-bottom: 1px solid $gray-200;
+
+  h4 {
+    margin: 0;
+    font-size: $font-size-lg;
+    color: $gray-900;
+  }
+
+  .status-badge {
+    padding: $spacing-1 $spacing-3;
+    font-size: $font-size-sm;
+    font-weight: 500;
+    border-radius: $radius-full;
+    background-color: $warning;
+    color: #fff;
+  }
+}
+
+.reservation-details {
+  margin-bottom: $spacing-4;
+
+  p {
+    margin-bottom: $spacing-2;
+    color: $gray-600;
+    font-size: $font-size-sm;
+
+    strong {
+      color: $gray-900;
+      font-weight: 600;
+    }
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
+.reservation-actions {
+  display: flex;
+  gap: $spacing-2;
+  flex-wrap: wrap;
+
+  button {
+    flex: 1;
+    min-width: 150px;
+    padding: $spacing-2 $spacing-3;
+    font-size: $font-size-sm;
+
+    @media (max-width: $breakpoint-md) {
+      min-width: 100%;
+    }
+  }
+}
+
+// Dossier Locataire Form
+.dossier-locataire-form {
+  padding: $spacing-5;
+  background-color: #fff;
+  border-radius: $radius-md;
+  box-shadow: $shadow-md;
+
+  h3 {
+    margin-bottom: $spacing-4;
+    padding-bottom: $spacing-3;
+    border-bottom: 2px solid $primary;
+    color: $gray-900;
+    font-size: $font-size-xl;
+  }
+}
+
+.bail-form,
+.bail-summary {
+  padding: $spacing-5;
+  background-color: #fff;
+  border-radius: $radius-md;
+  box-shadow: $shadow-md;
+
+  h3 {
+    margin-bottom: $spacing-4;
+    padding-bottom: $spacing-3;
+    border-bottom: 2px solid $primary;
+    color: $gray-900;
+    font-size: $font-size-xl;
+  }
+}
+
+.form-section {
+  margin-bottom: $spacing-6;
+  padding: $spacing-4;
+  background-color: $gray-50;
+  border-radius: $radius-md;
+  border: 1px solid $gray-200;
+
+  h4 {
+    margin-bottom: $spacing-3;
+    color: $gray-800;
+    font-size: $font-size-lg;
+    font-weight: 600;
+  }
+
+  &:last-of-type {
+    margin-bottom: $spacing-4;
+  }
+}
+
+.bail-info-box {
+  padding: $spacing-4;
+  margin-bottom: $spacing-4;
+  background-color: rgba($info, 0.1);
+  border-left: 4px solid $info;
+  border-radius: $radius-md;
+
+  h4 {
+    margin-bottom: $spacing-2;
+    color: $gray-900;
+    font-size: $font-size-base;
+    font-weight: 600;
+  }
+
+  p {
+    margin-bottom: $spacing-1;
+    color: $gray-700;
+    font-size: $font-size-sm;
+    line-height: 1.5;
+
+    strong {
+      color: $gray-900;
+      font-weight: 600;
+    }
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $spacing-4;
+
+  @media (max-width: $breakpoint-md) {
+    grid-template-columns: 1fr;
+  }
+
+  .form-group {
+    margin-bottom: 0;
+  }
+}
+
+// Form action buttons
+.dossier-locataire-form, .bail-form, .bail-summary {
+  .form-actions {
+    display: flex;
+    gap: $spacing-3;
+    justify-content: flex-end;
+    margin-top: $spacing-5;
+
+    @media (max-width: $breakpoint-md) {
+      flex-direction: column-reverse;
+      
+      button {
+        width: 100%;
+      }
+    }
+  }
+}
+
+// Form value display (for read-only fields in summaries)
+.form-value {
+  display: block;
+  margin-top: $spacing-1;
+  padding: $spacing-2;
+  font-size: $font-size-base;
+  color: $gray-900;
+  font-weight: 500;
 }

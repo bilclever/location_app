@@ -1,17 +1,31 @@
 import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useAppartement } from '../hooks/useAppartements';
+import { useAppartement, useAppartementLocations } from '../hooks/useAppartements';
+import { 
+  useConfirmerLocation, 
+  useAnnulerLocation, 
+  useCreateDossierLocataire,
+  useGenerateBail 
+} from '../hooks/useLocations';
 import { useAuthContext as useAuth } from '../context/AuthContext';
 import { formatters } from '../utils/formatters';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import PhotoManager from '../components/appartements/PhotoManager';
+import ReservationRequests from '../components/locations/ReservationRequests';
+import AppartementFinances from '../components/appartements/AppartementFinances';
 
 const AppartementDetailPage = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
   const { data: appartement, isLoading, error } = useAppartement(slug);
+  const { data: locationsData } = useAppartementLocations(slug, { statut: 'RESERVE' });
   const [selectedImage, setSelectedImage] = useState(null);
+  
+  const confirmerMutation = useConfirmerLocation();
+  const annulerMutation = useAnnulerLocation();
+  const createDossierMutation = useCreateDossierLocataire();
+  const generateBailMutation = useGenerateBail();
 
   if (isLoading) return <LoadingSpinner fullPage />;
 
@@ -62,10 +76,6 @@ const AppartementDetailPage = () => {
   };
 
   const whatsappLink = buildWhatsAppLink();
-  const cautionMois = Number(appartement?.cautionMois || 0);
-  const cautionAmount = cautionMois > 0
-    ? Number(appartement.loyerMensuel || 0) * cautionMois
-    : Number(appartement.caution || 0);
 
   // Vérifier si l'utilisateur connecté est le propriétaire
   let isOwner = false;
@@ -74,35 +84,39 @@ const AppartementDetailPage = () => {
     const proprietaireId = appartement.proprietaire;
     const userId = user.id;
     
-    // Debug: afficher les valeurs pour comprendre le format
-    console.log('User ID:', userId, 'Type:', typeof userId);
-    console.log('Proprietaire ID:', proprietaireId, 'Type:', typeof proprietaireId);
-    console.log('Comparaison stricte:', userId === proprietaireId);
-    console.log('Comparaison String:', String(userId) === String(proprietaireId));
-    
     isOwner = String(userId) === String(proprietaireId);
-    console.log('isOwner:', isOwner);
   }
 
+  // Extraire les locations en attente 
+  const pendingLocations = locationsData?.results || [];
+  const premiumBienId = typeof appartement?.bien === 'object' && appartement?.bien !== null
+    ? appartement.bien.id
+    : appartement?.bien;
+
+  const handleConfirm = async (locationId) => {
+    await confirmerMutation.mutateAsync(locationId);
+  };
+
+  const handleReject = async (locationId) => {
+    await annulerMutation.mutateAsync(locationId);
+  };
+
+  const handleCreateDossier = async (locationId, formData) => {
+    await createDossierMutation.mutateAsync({ id: locationId, formData });
+  };
+
+  const handleCreateBail = async (locationId, data) => {
+    await generateBailMutation.mutateAsync({ id: locationId, data });
+  };
+
   return (
-    <div className="page detail">
-      <section className="section section-surface">
+    <div className="page detail appartement-detail-page">
+      <section className="section appartement-detail-surface">
         <div className="container">
-          <div style={{ marginBottom: '1rem' }}>
+          <div className="detail-back-nav">
             <button
               onClick={() => navigate(-1)}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '0.5rem',
-                fontSize: '1.5rem',
-                color: '#666',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '0.5rem',
-                marginTop: '-0.5rem',
-              }}
+              className="detail-back-btn"
               title="Retour"
             >
               ← <span>Retour</span>
@@ -142,44 +156,33 @@ const AppartementDetailPage = () => {
               </div>
 
               <div className="info">
-                <h3>Description</h3>
-                <p style={{ whiteSpace: 'pre-line' }}>{appartement.description}</p>
+                <div className="appartement-headline">
+                  <h2 className="headline-title">{appartement.titre}</h2>
+                  <div className="headline-price">
+                    {formatters.price(appartement.loyerMensuel)}
+                    <small>/mois</small>
+                  </div>
 
-                <h3 style={{ marginTop: '2rem' }}>Caracteristiques</h3>
-                <div>
-                  <div className="detail-item">
-                    <span className="label">Adresse</span>
-                    <span className="value">{appartement.adresse}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Ville</span>
-                    <span className="value">{appartement.ville} {appartement.codePostal}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Surface</span>
-                    <span className="value">{formatters.surface(appartement.surface)}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Nombre de pieces</span>
-                    <span className="value">{appartement.nbPieces}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Loyer mensuel</span>
-                    <span className="value">{formatters.price(appartement.loyerMensuel)}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Caution</span>
-                    <span className="value">{cautionMois} mois ({formatters.price(cautionAmount)})</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Disponibilite</span>
-                    <span className="value">
-                      <span className={`badge ${appartement.disponible ? 'badge-success' : 'badge-secondary'}`}>
-                        {appartement.disponible ? 'Disponible' : 'Indisponible'}
-                      </span>
+                  <p className="headline-address">{appartement.adresse}</p>
+                  <p className="headline-city">{appartement.ville} {appartement.codePostal}</p>
+
+                  <div className="headline-badges">
+                    <span className={`badge ${appartement.disponible ? 'badge-success' : 'badge-secondary'}`}>
+                      {appartement.disponible ? 'Disponible' : 'Indisponible'}
                     </span>
+                    <span className="badge badge-primary">
+                      {appartement.nbPieces} pieces
+                    </span>
+                    {appartement.surface && (
+                      <span className="badge badge-info">
+                        {formatters.surface(appartement.surface)}
+                      </span>
+                    )}
                   </div>
                 </div>
+
+                <h3>Description</h3>
+                <p style={{ whiteSpace: 'pre-line' }}>{appartement.description}</p>
               </div>
             </div>
 
@@ -218,27 +221,54 @@ const AppartementDetailPage = () => {
                 )}
               </div>
 
-              {/* Section propriétaire temporairement désactivée - à adapter au modèle unifié */}
-              {/*
-              {appartement.proprietaire && (
-                <div className="booking-card" style={{ marginTop: '1rem' }}>
-                  <h3>Proprietaire</h3>
-                  <p>
-                    <strong>{appartement.proprietaire.user.full_name}</strong>
-                  </p>
-                  {appartement.proprietaire.note_moyenne > 0 && (
-                    <p>Note: {appartement.proprietaire.note_moyenne}/5</p>
-                  )}
+              {isOwner && (
+                <div className="owner-photo-manager owner-photo-manager-desktop">
+                  <PhotoManager appartement={appartement} />
                 </div>
               )}
-              */}
+
+              {isOwner && user?.plan === 'premium' && (
+                <div className="premium-finances premium-finances-desktop">
+                  <AppartementFinances bienId={premiumBienId} />
+                </div>
+              )}
+
             </div>
           </div>
 
+          {/* Section Propriétaire : Ajout des photos et réservations */}
           {isOwner && (
-            <div style={{ marginTop: '2rem' }}>
-              <PhotoManager appartement={appartement} />
-            </div>
+            <>
+              <div className="owner-photo-manager owner-photo-manager-mobile">
+                <PhotoManager appartement={appartement} />
+              </div>
+              
+              {pendingLocations.length > 0 && (
+                <div style={{ marginTop: '2rem' }}>
+                  <ReservationRequests
+                    locations={pendingLocations}
+                    appartement={appartement}
+                    onConfirm={handleConfirm}
+                    onReject={handleReject}
+                    onCreateDossier={handleCreateDossier}
+                    onCreateBail={handleCreateBail}
+                    isLoading={
+                      confirmerMutation.isLoading || 
+                      annulerMutation.isLoading || 
+                      createDossierMutation.isLoading ||
+                      generateBailMutation.isLoading
+                    }
+                  />
+                </div>
+              )}
+
+              {/* Section Comptabilité Premium */}
+              {user?.plan === 'premium' && (
+                <div className="premium-finances premium-finances-mobile">
+                  <AppartementFinances bienId={premiumBienId} />
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>

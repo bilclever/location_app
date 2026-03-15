@@ -2,6 +2,7 @@
 -- Run this migration in Supabase SQL editor.
 
 create extension if not exists pgcrypto;
+create extension if not exists pg_net;
 
 create table if not exists premium_categories (
   id uuid primary key default gen_random_uuid(),
@@ -67,10 +68,33 @@ create table if not exists premium_baux (
   date_sortie date,
   revision_annuelle numeric(5,2) not null default 0,
   depot_garantie numeric(12,2) not null default 0,
+  bail_pdf_url text,
+  bail_email_status text not null default 'NOT_SENT' check (bail_email_status in ('NOT_SENT','PENDING','SENT','FAILED')),
+  bail_email_sent_at timestamptz,
+  bail_email_error text,
   statut text not null default 'ACTIF' check (statut in ('ACTIF','TERMINE','RESILIE')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table premium_baux add column if not exists bail_pdf_url text;
+alter table premium_baux add column if not exists bail_email_status text not null default 'NOT_SENT';
+alter table premium_baux add column if not exists bail_email_sent_at timestamptz;
+alter table premium_baux add column if not exists bail_email_error text;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'premium_baux_bail_email_status_check'
+  ) then
+    alter table premium_baux
+    add constraint premium_baux_bail_email_status_check
+    check (bail_email_status in ('NOT_SENT','PENDING','SENT','FAILED'));
+  end if;
+end;
+$$;
 
 create table if not exists premium_ecritures_comptables (
   id uuid primary key default gen_random_uuid(),
@@ -239,9 +263,111 @@ begin
 end;
 $$;
 
+create or replace function premium_queue_bail_email()
+returns trigger
+language plpgsql
+as $$
+declare
+  function_url text;
+  function_secret text;
+  locataire_record record;
+  bien_record record;
+  request_headers jsonb;
+begin
+  if new.bail_pdf_url is null or trim(new.bail_pdf_url) = '' then
+    return new;
+  end if;
+
+  if tg_op = 'UPDATE' and new.bail_pdf_url is not distinct from old.bail_pdf_url then
+    return new;
+  end if;
+
+  select id, email, nom, prenoms
+    into locataire_record
+  from premium_locataires
+  where id = new.locataire_id;
+
+  if locataire_record.email is null or trim(locataire_record.email) = '' then
+    update premium_baux
+    set bail_email_status = 'FAILED',
+        bail_email_error = 'Email locataire manquant',
+        updated_at = now()
+    where id = new.id;
+    return new;
+  end if;
+
+  select id, titre, adresse
+    into bien_record
+  from premium_biens
+  where id = new.bien_id;
+
+  function_url := coalesce(
+    current_setting('app.settings.send_bail_email_url', true),
+    ''
+  );
+
+  function_secret := coalesce(
+    current_setting('app.settings.send_bail_email_secret', true),
+    ''
+  );
+
+  if function_url = '' then
+    update premium_baux
+    set bail_email_status = 'FAILED',
+        bail_email_error = 'Parametre app.settings.send_bail_email_url manquant',
+        updated_at = now()
+    where id = new.id;
+    return new;
+  end if;
+
+  request_headers := jsonb_build_object('Content-Type', 'application/json');
+
+  if function_secret <> '' then
+    request_headers := request_headers || jsonb_build_object('x-bail-secret', function_secret);
+  end if;
+
+  perform net.http_post(
+    url := function_url,
+    headers := request_headers,
+    body := jsonb_build_object(
+      'bail', jsonb_build_object(
+        'id', new.id,
+        'date_entree', new.date_entree,
+        'date_sortie', new.date_sortie,
+        'bail_pdf_url', new.bail_pdf_url
+      ),
+      'locataire', jsonb_build_object(
+        'id', locataire_record.id,
+        'email', locataire_record.email,
+        'nom', locataire_record.nom,
+        'prenoms', locataire_record.prenoms
+      ),
+      'bien', jsonb_build_object(
+        'id', bien_record.id,
+        'titre', bien_record.titre,
+        'adresse', bien_record.adresse
+      )
+    )
+  );
+
+  update premium_baux
+  set bail_email_status = 'PENDING',
+      bail_email_error = null,
+      updated_at = now()
+  where id = new.id;
+
+  return new;
+end;
+$$;
+
 create trigger trg_premium_payment_to_revenue
 after insert on premium_payments
 for each row execute function premium_auto_add_rent_revenue();
+
+drop trigger if exists trg_premium_baux_auto_send_email on premium_baux;
+create trigger trg_premium_baux_auto_send_email
+after insert or update of bail_pdf_url on premium_baux
+for each row execute function premium_queue_bail_email();
 
 create or replace view premium_balance_view as
 select

@@ -8,9 +8,23 @@ export const useAppartements = (params = {}) => {
     ['appartements', params],
     async () => {
       const data = await appartementService.getAll(params);
+      const rawResults = Array.isArray(data?.results)
+        ? data.results
+        : (Array.isArray(data) ? data : []);
+
+      const paginationSource = Array.isArray(data)
+        ? {
+          count: data.length,
+          page_size: data.length || params.page_size || 10,
+          current_page: Number(params.page || 1),
+          total_pages: 1,
+          results: data,
+        }
+        : data;
+
       return {
-        ...adapters.paginatedResponse(data),
-        results: data.results.map(adapters.appartementList),
+        ...adapters.paginatedResponse(paginationSource),
+        results: rawResults.map(adapters.appartementList),
       };
     },
     {

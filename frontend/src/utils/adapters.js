@@ -47,10 +47,12 @@ export const adapters = {
 
   // Adaptation de AppartementList vers format frontend
   appartementList: (data) => ({
+    bien: typeof data.bien === 'object' && data.bien !== null ? data.bien.id : data.bien,
     id: data.id,
     slug: data.slug,
     titre: data.titre,
     ville: data.ville,
+    typeBien: data.type_bien,
     loyerMensuel: parseFloat(data.loyer_mensuel),
     surface: data.surface,
     nbPieces: data.nb_pieces,
@@ -79,6 +81,10 @@ export const adapters = {
       });
     }
     
+    const bienId = typeof data.bien === 'object' && data.bien !== null
+      ? data.bien.id
+      : data.bien;
+
     return {
       id: data.id,
       slug: data.slug,
@@ -87,6 +93,7 @@ export const adapters = {
       adresse: data.adresse,
       ville: data.ville,
       codePostal: data.code_postal,
+      typeBien: data.type_bien,
       loyerMensuel: parseFloat(data.loyer_mensuel),
       caution: parseFloat(data.caution),
       cautionMois: data.caution_mois ?? 0,
@@ -96,6 +103,7 @@ export const adapters = {
       photoPrincipale: withMediaBase(data.photo_principale),
       photoPrincipaleUrl: withMediaBase(data.photo_principale_url),
       photos: photos,
+      bien: bienId,
       proprietaire: data.proprietaire,
       proprietaireTelephone: data.proprietaire_telephone,
       nbVues: data.nb_vues,
@@ -123,6 +131,7 @@ export const adapters = {
     statut: data.statut,
     montantTotal: parseFloat(data.montant_total),
     dateReservation: data.date_reservation,
+    bailPdfUrl: data.bail_pdf_url,
   }),
 
   // Adaptation de LocationDetail vers format frontend
@@ -143,6 +152,8 @@ export const adapters = {
     commission: parseFloat(data.commission),
     notes: data.notes,
     dureeSejour: data.duree_sejour,
+    bailPdfUrl: data.bail_pdf_url,
+    dateGenerationBail: data.date_generation_bail,
   }),
 
   // Adaptation de PaginatedResponse

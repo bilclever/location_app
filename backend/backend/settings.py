@@ -193,3 +193,18 @@ SUPABASE_URL = config('SUPABASE_URL', default='https://gabwjrfyzctcsnmgezuv.supa
 SUPABASE_JWT_SECRET = config('SUPABASE_JWT_SECRET', default='')
 SUPABASE_JWT_ALGORITHMS = config('SUPABASE_JWT_ALGORITHMS', default='ES256,HS256')
 SUPABASE_JWT_ISSUER = config('SUPABASE_JWT_ISSUER', default=f'{SUPABASE_URL}/auth/v1')
+
+# Email (SMTP)
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='api.email_backend.ConfigurableTLSEmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_USE_SSL = config('EMAIL_USE_SSL', default=False, cast=bool)
+EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=30, cast=int)
+EMAIL_TLS_VALIDATE_CERTS = config('EMAIL_TLS_VALIDATE_CERTS', default=True, cast=bool)
+EMAIL_CA_FILE = config('EMAIL_CA_FILE', default='')
+
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER or 'noreply@residance.local')
+DOCUMENT_REPLY_TO_EMAIL = config('DOCUMENT_REPLY_TO_EMAIL', default=DEFAULT_FROM_EMAIL)

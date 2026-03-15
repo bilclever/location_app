@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCreateAppartement, useUpdateAppartement, useUploadPhoto } from '../../hooks/useAppartements';
 import { validators } from '../../utils/validators';
-import { VILLES, NB_PIECES } from '../../utils/constants';
+import { VILLES, NB_PIECES, BIEN_TYPE_OPTIONS } from '../../utils/constants';
 
 const AppartementForm = ({ appartement, onSuccess }) => {
   const navigate = useNavigate();
@@ -14,8 +14,9 @@ const AppartementForm = ({ appartement, onSuccess }) => {
     titre: appartement?.titre || '',
     description: appartement?.description || '',
     adresse: appartement?.adresse || '',
-    ville: appartement?.ville || 'Paris',
+    ville: appartement?.ville || 'Lomé',
     code_postal: appartement?.code_postal || '',
+    type_bien: appartement?.typeBien || 'APPARTEMENT',
     loyer_mensuel: appartement?.loyer_mensuel || '',
     caution_mois: appartement?.cautionMois ?? 0,
     surface: appartement?.surface || '',
@@ -64,6 +65,10 @@ const AppartementForm = ({ appartement, onSuccess }) => {
 
     if (!validators.required(formData.code_postal)) {
       newErrors.code_postal = 'Code postal requis';
+    }
+
+    if (!validators.required(formData.type_bien)) {
+      newErrors.type_bien = 'Type de bien requis';
     }
 
     if (!validators.required(formData.loyer_mensuel)) {
@@ -228,6 +233,25 @@ const AppartementForm = ({ appartement, onSuccess }) => {
           />
           {errors.code_postal && <div className="form-error">{errors.code_postal}</div>}
         </div>
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="type_bien" className="form-label">
+          Type de bien *
+        </label>
+        <select
+          id="type_bien"
+          name="type_bien"
+          className={`form-control ${errors.type_bien ? 'error' : ''}`}
+          value={formData.type_bien}
+          onChange={handleChange}
+          required
+        >
+          {BIEN_TYPE_OPTIONS.map((item) => (
+            <option key={item.value} value={item.value}>{item.label}</option>
+          ))}
+        </select>
+        {errors.type_bien && <div className="form-error">{errors.type_bien}</div>}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>

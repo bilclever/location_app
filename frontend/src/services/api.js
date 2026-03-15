@@ -1,7 +1,30 @@
 import axios from 'axios';
 import { supabase, isSupabaseConfigured, getSupabaseAccessToken } from './supabaseClient';
 
-const API_URL = process.env.REACT_APP_API_URL;
+const resolveApiUrl = () => {
+  const configuredUrl = process.env.REACT_APP_API_URL;
+
+  if (process.env.NODE_ENV !== 'development') {
+    return configuredUrl;
+  }
+
+  if (!configuredUrl) {
+    return '/api';
+  }
+
+  try {
+    const parsedUrl = new URL(configuredUrl);
+    if (['localhost', '127.0.0.1'].includes(parsedUrl.hostname)) {
+      return '/api';
+    }
+  } catch (_error) {
+    // Keep configuredUrl if it is already relative or cannot be parsed.
+  }
+
+  return configuredUrl;
+};
+
+const API_URL = resolveApiUrl();
 
 const api = axios.create({
   baseURL: API_URL,
@@ -10,10 +33,29 @@ const api = axios.create({
   },
 });
 
+const normalizePath = (rawUrl = '') => {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+
+  try {
+    if (/^https?:\/\//i.test(rawUrl)) {
+      return new URL(rawUrl).pathname || '';
+    }
+  } catch (_error) {
+    // Ignore parsing errors and keep fallback logic below.
+  }
+
+  return rawUrl.split('?')[0] || '';
+};
+
 const isPublicAppartementRequest = (config) => {
   const method = (config?.method || 'get').toLowerCase();
-  const url = config?.url || '';
-  return method === 'get' && /^\/?appartements(\/|$)/.test(url);
+  const path = normalizePath(config?.url || '');
+
+  if (method !== 'get') {
+    return false;
+  }
+
+  return /(^|\/)appartements(\/|$)/.test(path);
 };
 
 // Intercepteur pour ajouter le token
@@ -65,7 +107,7 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    if (error.response?.status === 403 && isPublicAppartementRequest(originalRequest)) {
+    if ((error.response?.status === 401 || error.response?.status === 403) && isPublicAppartementRequest(originalRequest)) {
       return Promise.reject(error);
     }
 

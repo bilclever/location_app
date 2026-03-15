@@ -1,0 +1,2 @@
+[functions.send-bail-email]
+verify_jwt = false

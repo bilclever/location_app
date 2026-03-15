@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { AuthProvider } from './context/AuthContext';
@@ -25,6 +25,10 @@ import './assets/styles/main.scss';
 function App() {
   const location = useLocation();
   const isHomePage = location.pathname === '/';
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [location.pathname]);
   
   return (
     <ErrorBoundary>

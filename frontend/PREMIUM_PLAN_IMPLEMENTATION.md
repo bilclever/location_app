@@ -26,6 +26,7 @@ A migration SQL est fournie dans:
   - Trigger d audit sur insert/update/delete paiement
 - Automatisation:
   - Trigger `trg_premium_payment_to_revenue` pour creer une ecriture de revenu lors d un paiement
+  - Trigger `trg_premium_baux_auto_send_email` pour envoyer automatiquement le bail au locataire quand `bail_pdf_url` est renseigne
 - RLS:
   - Policies owner-only sur toutes les tables premium
 
@@ -81,3 +82,39 @@ Le frontend consomme les endpoints suivants:
 - `POST /premium/rgpd/purge/`
 
 Si votre backend est 100% Supabase, mappez ces endpoints vers vos RPC/tables ou adaptez `src/services/premium.js`.
+
+## 4) Envoi automatique du bail par email (Django + Supabase)
+
+### Principe
+
+1. Django genere le PDF du bail (WeasyPrint, etc.)
+2. Django stocke le PDF et met a jour `premium_baux.bail_pdf_url`
+3. Le trigger SQL `trg_premium_baux_auto_send_email` declenche un webhook vers la fonction Supabase `send-bail-email`
+4. La fonction envoie le mail et met a jour:
+   - `bail_email_status = SENT` en cas de succes
+   - `bail_email_status = FAILED` + `bail_email_error` en cas d erreur
+
+### Variables/Secrets a configurer
+
+- Cote Postgres/Supabase (`ALTER DATABASE ... SET` ou dashboard):
+  - `app.settings.send_bail_email_url = https://<project-ref>.supabase.co/functions/v1/send-bail-email`
+  - `app.settings.send_bail_email_secret = <secret-partage-optionnel>`
+
+- Cote fonction Edge `send-bail-email`:
+  - `RESEND_API_KEY`
+  - `BAIL_MAIL_FROM`
+  - `BAIL_MAIL_REPLY_TO` (optionnel)
+  - `BAIL_EMAIL_FUNCTION_SECRET` (si secret active)
+  - `SUPABASE_URL`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+
+### Contrat backend attendu depuis Django
+
+Au moment de la generation du bail, Django doit au minimum renseigner:
+
+- `premium_baux.id`
+- `premium_baux.locataire_id`
+- `premium_baux.bien_id`
+- `premium_baux.bail_pdf_url`
+
+Le reste (envoi mail + suivi d etat) est gere automatiquement par le backend Supabase.

@@ -13,6 +13,9 @@ const HomePage = () => {
     page_size: 6,
   });
 
+  const appartements = data?.results || [];
+  const shouldShowError = Boolean(error) && appartements.length === 0;
+
   const hasPhoneNumber = Boolean(user?.telephone?.trim());
 
   const publishLink = !isAuthenticated
@@ -77,13 +80,13 @@ const HomePage = () => {
 
           {isLoading && <LoadingSpinner fullPage />}
 
-          {error && (
+          {shouldShowError && (
             <div className="alert alert-error">
               Une erreur est survenue lors du chargement des appartements.
             </div>
           )}
 
-          {data && <AppartementCarousel appartements={data.results} />}
+          {appartements.length > 0 && <AppartementCarousel appartements={appartements} />}
         </div>
       </section>
 

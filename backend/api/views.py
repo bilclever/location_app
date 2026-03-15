@@ -8,11 +8,13 @@ from django.utils import timezone
 from django.db.models import Q, Sum, Count
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
+from django.http import FileResponse
+from django.core.files.base import ContentFile
 from typing import TYPE_CHECKING
 from django.contrib.auth.models import AbstractBaseUser
 
 from .models import (
-    Appartement, Photo, Location, Favori,
+    Appartement, Photo, Location, Favori, DossierLocataire,
 )
 
 from .serializers import (
@@ -29,6 +31,7 @@ from .serializers import (
     # Locations
     LocationListSerializer, LocationDetailSerializer,
     LocationCreateSerializer, LocationUpdateSerializer,
+    DossierLocataireSerializer,
 
     # Favoris
     FavoriCreateSerializer,
@@ -40,7 +43,7 @@ from .permissions import (
     IsAdminOrReadOnly, IsOwnerOrAdmin, IsProprietaire, IsLocataire, CanManageAppartement
 )
 from .pagination import StandardResultsSetPagination
-from .utils import send_reservation_confirmation_email
+from .utils import send_reservation_confirmation_email, send_bail_generated_email
 import logging
 
 User = get_user_model()
@@ -210,7 +213,7 @@ class AppartementViewSet(viewsets.ModelViewSet):
     queryset = Appartement.objects.all()
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['disponible', 'ville', 'nb_pieces', 'proprietaire']
+    filterset_fields = ['disponible', 'ville', 'nb_pieces', 'proprietaire', 'type_bien']
     search_fields = ['titre', 'description', 'adresse', 'ville']
     ordering_fields = ['loyer_mensuel', 'surface', 'date_creation', 'nb_vues']
     ordering = ['-date_creation']
@@ -457,38 +460,194 @@ class LocationViewSet(viewsets.ModelViewSet):
 
         if location.statut in ['ANNULE', 'TERMINE']:
             return Response({'error': 'Impossible de confirmer une location annulée ou terminée'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if location.statut != 'RESERVE':
-            return Response(
-                {'error': 'Seules les réservations en attente peuvent être confirmées'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Vérifier les conflits avec d'autres locations confirmées/payées
-        conflits = Location.objects.filter(
-            appartement=location.appartement,
-            date_debut__lte=location.date_fin,
-            date_fin__gte=location.date_debut,
-            statut__in=['CONFIRME', 'PAYE']
-        ).exclude(pk=location.pk)
-
-        if conflits.exists():
-            return Response({'error': 'Impossible de confirmer : des réservations confirmées existent déjà pour ces dates'}, status=status.HTTP_400_BAD_REQUEST)
-
+        
         location.statut = 'CONFIRME'
         location.date_confirmation = timezone.now()
         location.save()
-
-        # Marquer l'appartement comme indisponible
-        try:
-            appartement = location.appartement
-            appartement.disponible = False
-            appartement.save()
-        except Exception:
-            pass
-
+        
         serializer = LocationDetailSerializer(location)
         return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def create_dossier_locataire(self, request, pk=None):
+        """Créer un dossier locataire à partir d'une réservation"""
+        location = self.get_object()
+        
+        # Vérifier que l'utilisateur est le propriétaire
+        if not request.user.is_staff and location.appartement.proprietaire != request.user:
+            return Response(
+                {'error': 'Vous n\'êtes pas autorisé à créer ce dossier'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Extraire les données du formulaire
+        nom = request.data.get('nom', location.nom_locataire.split()[0] if location.nom_locataire else '')
+        prenom = request.data.get('prenom', ' '.join(location.nom_locataire.split()[1:]) if location.nom_locataire else '')
+        email = request.data.get('email', location.email_locataire)
+        telephone = request.data.get('telephone', location.telephone_locataire)
+        profession = request.data.get('profession', '')
+        date_naissance = request.data.get('date_naissance')
+        piece_identite = request.FILES.get('piece_identite')
+        garant_nom = request.data.get('garant_nom', '')
+        garant_email = request.data.get('garant_email', '')
+        garant_telephone = request.data.get('garant_telephone', '')
+        
+        # Vérifier que la pièce d'identité est fournie
+        if not piece_identite:
+            return Response(
+                {'error': 'La pièce d\'identité est obligatoire'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Créer ou mettre à jour le locataire User si l'email existe
+        locataire_user = None
+        try:
+            locataire_user = User.objects.get(email=email)
+            # Mettre à jour les infos si nécessaire
+            if telephone:
+                locataire_user.telephone = telephone
+            if date_naissance:
+                locataire_user.date_naissance = date_naissance
+            locataire_user.save()
+        except User.DoesNotExist:
+            pass
+        
+        # Créer ou mettre à jour le dossier locataire
+        dossier, created = DossierLocataire.objects.update_or_create(
+            location=location,
+            defaults={
+                'nom': nom,
+                'prenom': prenom,
+                'email': email,
+                'telephone': telephone,
+                'profession': profession,
+                'date_naissance': date_naissance,
+                'piece_identite': piece_identite,
+                'garant_nom': garant_nom,
+                'garant_email': garant_email,
+                'garant_telephone': garant_telephone,
+            }
+        )
+        
+        # Mettre à jour les infos dans la location
+        if locataire_user:
+            location.locataire = locataire_user
+        location.save()
+        
+        return Response({
+            'message': f'Dossier locataire {"créé" if created else "mis à jour"} avec succès',
+            'location': LocationDetailSerializer(location).data,
+            'dossier': {
+                'id': dossier.id,
+                'nom': dossier.nom,
+                'prenom': dossier.prenom,
+                'email': dossier.email,
+                'telephone': dossier.telephone,
+                'profession': dossier.profession,
+                'date_naissance': dossier.date_naissance,
+                'piece_identite_url': dossier.piece_identite.url if dossier.piece_identite else None,
+                'garant_nom': dossier.garant_nom,
+                'garant_email': dossier.garant_email,
+                'garant_telephone': dossier.garant_telephone,
+                'date_creation': dossier.date_creation,
+            }
+        })
+    
+    @action(detail=True, methods=['post'])
+    def generate_bail(self, request, pk=None):
+        """Générer un bail numérique pour une réservation"""
+        location = self.get_object()
+        
+        # Vérifier que l'utilisateur est le propriétaire
+        if not request.user.is_staff and location.appartement.proprietaire != request.user:
+            return Response(
+                {'error': 'Vous n\'êtes pas autorisé à générer ce bail'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Extraire les conditions du bail
+        date_entree = request.data.get('date_entree')
+        date_fin = request.data.get('date_fin')
+        loyer_mensuel = request.data.get('loyer_mensuel')
+        charges = request.data.get('charges', 0)
+        depot_garantie = request.data.get('depot_garantie')
+        conditions_particulieres = request.data.get('conditions_particulieres', '')
+        
+        # Validation des données obligatoires
+        if not all([date_entree, date_fin, loyer_mensuel, depot_garantie]):
+            return Response(
+                {'error': 'Données du bail incomplètes'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Préparer les données du bail
+        bail_data = {
+            'date_entree': date_entree,
+            'date_fin': date_fin,
+            'loyer_mensuel': loyer_mensuel,
+            'charges': charges,
+            'depot_garantie': depot_garantie,
+            'conditions_particulieres': conditions_particulieres,
+        }
+        
+        # Générer le PDF
+        from .utils import generate_bail_pdf
+        pdf_buffer = generate_bail_pdf(location, bail_data)
+        
+        if pdf_buffer is None:
+            return Response(
+                {'error': 'Erreur lors de la génération du PDF'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        # Sauvegarder le PDF dans le backend (media storage)
+        locataire_name = (location.nom_locataire or 'bail').replace(' ', '_').replace('/', '_')
+        filename = f"bail_{location.id}_{locataire_name}.pdf"
+
+        # Supprimer l'ancien fichier si présent pour éviter les doublons
+        if location.bail_pdf:
+            location.bail_pdf.delete(save=False)
+
+        location.bail_pdf.save(filename, ContentFile(pdf_buffer.getvalue()), save=False)
+        location.date_generation_bail = timezone.now()
+
+        # Stocker les infos du bail dans les notes
+        bail_info = {
+            **bail_data,
+            'bail_genere_le': timezone.now().isoformat(),
+            'bail_pdf_url': location.bail_pdf.url if location.bail_pdf else None,
+        }
+        
+        existing_notes = location.notes or ''
+        location.notes = f"{existing_notes}\n\nBail numérique généré:\n{bail_info}"
+        location.statut = 'CONFIRME'
+        location.date_confirmation = timezone.now()
+        location.save()
+        
+        # Envoyer automatiquement le bail au locataire par email (backend Django)
+        email_sent = True
+        email_error = ''
+        try:
+            send_bail_generated_email(
+                location=location,
+                bail_data=bail_data,
+                pdf_bytes=pdf_buffer.getvalue(),
+                filename=filename,
+            )
+        except Exception as error:
+            email_sent = False
+            email_error = str(error)
+            logger.error("Echec envoi email bail pour location=%s: %s", location.id, error, exc_info=True)
+
+        # Retourner le PDF en téléchargement
+        location.bail_pdf.open('rb')
+        response = FileResponse(location.bail_pdf, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response['Content-Length'] = location.bail_pdf.size
+        response['X-Bail-Email-Sent'] = 'true' if email_sent else 'false'
+        if not email_sent and email_error:
+            response['X-Bail-Email-Error'] = email_error[:180]
+        return response
 
 
 # ========== VUES FAVORIS ==========

@@ -43,21 +43,33 @@ export const STATUT_COLORS = {
 
 // Autres constantes
 export const VILLES = [
-  'Paris',
-  'Lyon',
-  'Marseille',
-  'Bordeaux',
-  'Toulouse',
-  'Lille',
-  'Nice',
-  'Nantes',
-  'Strasbourg',
-  'Montpellier',
-  'Rennes',
-  'Grenoble',
+  'Lomé',
+  'Kara',
+  'Sokodé',
+  'Kpalimé',
+  'Atakpamé',
+  'Tsévié',
+  'Aného',
+  'Dapaong',
+  'Notsé',
+  'Mango',
+  'Bassar',
+  'Bafilo',
+  'Kandé',
+  'Badou',
+  'Vogan',
 ];
 
 export const NB_PIECES = [1, 2, 3, 4, 5];
+
+export const BIEN_TYPE_OPTIONS = [
+  { value: 'APPARTEMENT', label: 'Appartement' },
+  { value: 'MAISON', label: 'Maison' },
+  { value: 'PARKING', label: 'Parking' },
+  { value: 'LOCAL_COMMERCIAL', label: 'Local commercial' },
+  { value: 'BUREAU', label: 'Bureau' },
+  { value: 'TERRAIN', label: 'Terrain' },
+];
 
 export const PRIX_MAX = [500, 750, 1000, 1250, 1500, 1750, 2000, 2500, 3000];
 

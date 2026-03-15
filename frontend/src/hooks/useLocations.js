@@ -133,3 +133,75 @@ export const useLocationsActives = (params = {}) => {
     }
   );
 };
+
+export const useCreateDossierLocataire = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation(
+    ({ id, formData }) => locationService.createDossierLocataire(id, formData),
+    {
+      onSuccess: (_, { id }) => {
+        queryClient.invalidateQueries('locations');
+        queryClient.invalidateQueries(['location', id]);
+        toast.success('Dossier locataire créé avec succès');
+      },
+      onError: (error) => {
+        const message = error.response?.data?.error || 'Erreur lors de la création du dossier';
+        toast.error(message);
+      },
+    }
+  );
+};
+
+export const useGenerateBail = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation(
+    async ({ id, data }) => {
+      try {
+        const response = await locationService.generateBail(id, data);
+        
+        // Vérifier que response.data est bien un Blob et non vide
+        if (!response.data || response.data.size === 0) {
+          throw new Error('PDF reçu vide ou invalide');
+        }
+        
+        // Vérifier que c'est bien un PDF (commence par %PDF ou est un blob)
+        const isValidBlob = response.data instanceof Blob;
+        if (!isValidBlob) {
+          throw new Error('Réponse invalide - pas un fichier binaire');
+        }
+        
+        // Créer le lien de téléchargement
+        const blob = response.data;
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute(
+          'download',
+          `bail_${id}_${data.locataire_nom || 'bail'}.pdf`
+        );
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        return response;
+      } catch (error) {
+        console.error('Erreur dans useGenerateBail:', error);
+        throw error;
+      }
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('locations');
+        toast.success('✓ Bail généré et téléchargé avec succès!');
+      },
+      onError: (error) => {
+        console.error('Erreur bail:', error);
+        const message = error.response?.data?.error || error.message || 'Erreur lors de la génération du bail';
+        toast.error(message);
+      },
+    }
+  );
+};

@@ -60,4 +60,22 @@ export const locationService = {
     const response = await api.get('/locations/actives/', { params });
     return response.data;
   },
+
+  // POST /api/locations/{id}/create_dossier_locataire/
+  async createDossierLocataire(id, formData) {
+    const response = await api.post(`/locations/${id}/create_dossier_locataire/`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // POST /api/locations/{id}/generate_bail/
+  async generateBail(id, data) {
+    const response = await api.post(`/locations/${id}/generate_bail/`, data, {
+      responseType: 'blob',
+    });
+    return response;
+  },
 };

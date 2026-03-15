@@ -14,9 +14,9 @@ const premiumKeys = {
   payments: ['premium', 'payments'],
 };
 
-export const usePremiumDashboard = () => useQuery(
-  premiumKeys.dashboard,
-  () => premiumService.getDashboard(),
+export const usePremiumDashboard = (params = {}) => useQuery(
+  [...premiumKeys.dashboard, params],
+  () => premiumService.getDashboard(params),
   {
     staleTime: 120000,
   }
@@ -46,17 +46,17 @@ export const usePremiumBiens = (params = {}) => useQuery(
   }
 );
 
-export const usePremiumLocataires = () => useQuery(
-  premiumKeys.locataires,
-  () => premiumService.getLocataires(),
+export const usePremiumLocataires = (params = {}) => useQuery(
+  [...premiumKeys.locataires, params],
+  () => premiumService.getLocataires(params),
   {
     staleTime: 120000,
   }
 );
 
-export const usePremiumBaux = () => useQuery(
-  premiumKeys.baux,
-  () => premiumService.getBaux(),
+export const usePremiumBaux = (params = {}) => useQuery(
+  [...premiumKeys.baux, params],
+  () => premiumService.getBaux(params),
   {
     staleTime: 120000,
   }
@@ -78,9 +78,9 @@ export const usePremiumAuditLogs = () => useQuery(
   }
 );
 
-export const usePremiumPayments = () => useQuery(
-  premiumKeys.payments,
-  () => premiumService.getPayments(),
+export const usePremiumPayments = (params = {}) => useQuery(
+  [...premiumKeys.payments, params],
+  () => premiumService.getPayments(params),
   {
     staleTime: 120000,
   }
@@ -151,7 +151,15 @@ export const useCreatePremiumComptaEntry = () => {
       queryClient.invalidateQueries(premiumKeys.dashboard);
       toast.success('Ecriture comptable ajoutee');
     },
-    onError: () => toast.error('Erreur lors de la creation de l ecriture'),
+    onError: (error) => {
+      const message = error?.response?.data?.detail
+        || error?.response?.data?.bien?.[0]
+        || error?.response?.data?.montant?.[0]
+        || error?.response?.data?.type_ecriture?.[0]
+        || error?.response?.data?.libelle?.[0]
+        || 'Erreur lors de la creation de l ecriture';
+      toast.error(message);
+    },
   });
 };
 

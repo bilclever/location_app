@@ -46,76 +46,16 @@ const PhotoManager = ({ appartement }) => {
     setPreviewUrls([]);
   };
 
-  const allPhotos = [
-    ...(appartement.photoPrincipaleUrl ? [{
-      url: appartement.photoPrincipaleUrl,
-      isPrincipal: true,
-      legende: 'Photo principale'
-    }] : []),
-    ...(appartement.photos?.map(p => ({
-      url: typeof p === 'string' ? p : p.image,
-      id: p.id,
-      legende: p.legende || ''
-    })) || [])
-  ];
-
   return (
     <div className="photo-manager">
       <div className="card">
         <div className="card-header">
-          <h3>Gestion des photos</h3>
+          <h3>Ajouter des photos</h3>
         </div>
 
         <div className="card-body">
-          {/* Photos existantes */}
-          <div style={{ marginBottom: '2rem' }}>
-            <h4 style={{ marginBottom: '1rem' }}>Photos actuelles ({allPhotos.length})</h4>
-            {allPhotos.length > 0 ? (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-                gap: '1rem'
-              }}>
-                {allPhotos.map((photo, index) => (
-                  <div key={photo.id || index} style={{ position: 'relative' }}>
-                    <img
-                      src={photo.url}
-                      alt={photo.legende || `Image ${index + 1}`}
-                      style={{
-                        width: '100%',
-                        height: '150px',
-                        objectFit: 'cover',
-                        borderRadius: '8px',
-                        border: photo.isPrincipal ? '3px solid #3b82f6' : 'none'
-                      }}
-                    />
-                    {photo.isPrincipal && (
-                      <span style={{
-                        position: 'absolute',
-                        top: '8px',
-                        left: '8px',
-                        background: '#3b82f6',
-                        color: 'white',
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        fontWeight: '600'
-                      }}>
-                        Principal
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p style={{ color: '#6b7280' }}>Aucune photo pour cet appartement</p>
-            )}
-          </div>
-
           {/* Ajouter de nouvelles photos */}
           <div>
-            <h4 style={{ marginBottom: '1rem' }}>Ajouter des photos</h4>
-            
             <div className="form-group">
               <input
                 type="file"
@@ -181,14 +121,6 @@ const PhotoManager = ({ appartement }) => {
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        .photo-manager h4 {
-          font-size: 1.125rem;
-          font-weight: 600;
-          color: #111827;
-        }
-      `}</style>
     </div>
   );
 };

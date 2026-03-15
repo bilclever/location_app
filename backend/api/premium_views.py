@@ -59,10 +59,24 @@ class PremiumLocataireViewSet(PremiumOwnedModelViewSet):
     queryset = PremiumLocataire.objects.all()
     serializer_class = PremiumLocataireSerializer
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        bien_id = self.request.query_params.get('bien_id')
+        if bien_id:
+            queryset = queryset.filter(baux__bien_id=bien_id).distinct()
+        return queryset
+
 
 class PremiumBailViewSet(PremiumOwnedModelViewSet):
     queryset = PremiumBail.objects.select_related('bien', 'locataire').all()
     serializer_class = PremiumBailSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        bien_id = self.request.query_params.get('bien_id')
+        if bien_id:
+            queryset = queryset.filter(bien_id=bien_id)
+        return queryset
 
 
 class PremiumComptaEntryViewSet(PremiumOwnedModelViewSet):
@@ -87,6 +101,13 @@ class PremiumPaymentViewSet(PremiumOwnedModelViewSet):
     queryset = PremiumPayment.objects.select_related('bail').all()
     serializer_class = PremiumPaymentSerializer
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        bien_id = self.request.query_params.get('bien_id')
+        if bien_id:
+            queryset = queryset.filter(bail__bien_id=bien_id)
+        return queryset
+
 
 class PremiumPaymentAuditLogListView(APIView):
     permission_classes = [IsAuthenticated, IsPremiumUser]
@@ -102,9 +123,16 @@ class PremiumDashboardView(APIView):
 
     def get(self, request):
         user = request.user
+        bien_id = request.query_params.get('bien_id')
+
         biens = PremiumBien.objects.filter(owner=user)
         baux = PremiumBail.objects.filter(owner=user)
         ecritures = PremiumComptableEcriture.objects.filter(owner=user)
+
+        if bien_id:
+            biens = biens.filter(id=bien_id)
+            baux = baux.filter(bien_id=bien_id)
+            ecritures = ecritures.filter(bien_id=bien_id)
 
         revenus = ecritures.filter(type_ecriture='REVENU').aggregate(total=Sum('montant'))['total'] or Decimal('0')
         depenses = ecritures.filter(type_ecriture='DEPENSE').aggregate(total=Sum('montant'))['total'] or Decimal('0')

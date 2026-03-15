@@ -144,6 +144,15 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class Appartement(models.Model):
+    BIEN_TYPE_CHOICES = [
+        ('APPARTEMENT', 'Appartement'),
+        ('MAISON', 'Maison'),
+        ('PARKING', 'Parking'),
+        ('LOCAL_COMMERCIAL', 'Local commercial'),
+        ('BUREAU', 'Bureau'),
+        ('TERRAIN', 'Terrain'),
+    ]
+
     proprietaire = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -152,11 +161,21 @@ class Appartement(models.Model):
         null=True,
         blank=True
     )
+    bien = models.ForeignKey(
+        'PremiumBien',
+        on_delete=models.SET_NULL,
+        related_name='appartements',
+        verbose_name="Bien Premium associé",
+        null=True,
+        blank=True,
+        help_text="Lien avec le bien dans le système Premium de comptabilité"
+    )
     titre = models.CharField(max_length=200, verbose_name="Titre", help_text="Titre de l'annonce")
     description = models.TextField(verbose_name="Description", help_text="Description détaillée")
     adresse = models.CharField(max_length=300, verbose_name="Adresse complète")
     ville = models.CharField(max_length=100, verbose_name="Ville", default="Paris")
     code_postal = models.CharField(max_length=10, verbose_name="Code postal", default="75000")
+    type_bien = models.CharField(max_length=30, choices=BIEN_TYPE_CHOICES, default='APPARTEMENT')
     loyer_mensuel = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -294,6 +313,17 @@ class Location(models.Model):
         validators=[MinValueValidator(0)]
     )
     notes = models.TextField(blank=True, verbose_name="Notes")
+    bail_pdf = models.FileField(
+        upload_to='baux_numeriques/',
+        null=True,
+        blank=True,
+        verbose_name="Bail PDF"
+    )
+    date_generation_bail = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Date generation bail"
+    )
 
     class Meta:
         verbose_name = "Location"
@@ -481,6 +511,11 @@ class PremiumComptableEcriture(models.Model):
     montant = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date_operation', '-created_at']
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -588,3 +623,37 @@ class PremiumPaymentAuditLog(models.Model):
 
     class Meta:
         ordering = ['-changed_at']
+
+
+class DossierLocataire(models.Model):
+    """
+    Modèle pour stocker les dossiers des locataires avec pièces justificatives
+    """
+    location = models.OneToOneField(
+        Location,
+        on_delete=models.CASCADE,
+        related_name='dossier',
+        verbose_name="Location"
+    )
+    nom = models.CharField(max_length=100, verbose_name="Nom")
+    prenom = models.CharField(max_length=100, verbose_name="Prénom")
+    email = models.EmailField(verbose_name="Email")
+    telephone = models.CharField(max_length=20, verbose_name="Téléphone")
+    profession = models.CharField(max_length=100, blank=True, verbose_name="Profession")
+    date_naissance = models.DateField(null=True, blank=True, verbose_name="Date de naissance")
+    piece_identite = models.FileField(
+        upload_to='dossiers_locataires/',
+        verbose_name="Pièce d'identité"
+    )
+    garant_nom = models.CharField(max_length=200, blank=True, verbose_name="Nom du garant")
+    garant_email = models.EmailField(blank=True, verbose_name="Email du garant")
+    garant_telephone = models.CharField(max_length=20, blank=True, verbose_name="Téléphone du garant")
+    date_creation = models.DateTimeField(auto_now_add=True, verbose_name="Date de création")
+
+    class Meta:
+        verbose_name = "Dossier Locataire"
+        verbose_name_plural = "Dossiers Locataires"
+        ordering = ['-date_creation']
+
+    def __str__(self):
+        return f"Dossier {self.prenom} {self.nom} - Location #{self.location.id}"

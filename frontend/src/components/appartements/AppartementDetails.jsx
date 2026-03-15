@@ -4,7 +4,7 @@ import { useAuthContext as useAuth } from '../../context/AuthContext';
 import { formatters } from '../../utils/formatters';
 import { STATUT_LABELS } from '../../utils/constants';
 
-const AppartementDetails = ({ appartement, onRefresh }) => {
+const AppartementDetails = ({ appartement }) => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const [selectedImage, setSelectedImage] = useState(null);

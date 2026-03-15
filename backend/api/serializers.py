@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import (
-    User, Appartement, Photo, Location, Favori
+    User, Appartement, Photo, Location, Favori, DossierLocataire
 )
 from decimal import Decimal
 from django.utils import timezone
@@ -31,7 +31,7 @@ class AppartementListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appartement
         fields = [
-            'id', 'slug', 'titre', 'ville', 'loyer_mensuel', 'surface',
+            'id', 'slug', 'titre', 'ville', 'type_bien', 'loyer_mensuel', 'surface',
             'nb_pieces', 'disponible', 'photo_principale_url',
             'nb_vues', 'nb_favoris'
         ]
@@ -93,10 +93,10 @@ class AppartementDetailSerializer(serializers.ModelSerializer):
         model = Appartement
         fields = [
             'id', 'slug', 'titre', 'description', 'adresse', 'ville', 'code_postal',
-            'loyer_mensuel', 'caution', 'surface', 'nb_pieces',
+            'type_bien', 'loyer_mensuel', 'caution', 'surface', 'nb_pieces',
             'disponible', 'photo_principale', 'photo_principale_url',
             'photos', 'proprietaire', 'proprietaire_telephone', 'caution_mois', 'nb_vues', 'nb_favoris',
-            'date_creation', 'date_modification'
+            'date_creation', 'date_modification', 'bien'
         ]
         read_only_fields = ['id', 'proprietaire', 'date_creation', 'date_modification', 'nb_vues', 'nb_favoris']
 
@@ -111,12 +111,13 @@ class AppartementCreateUpdateSerializer(serializers.ModelSerializer):
         model = Appartement
         fields = [
             'titre', 'description', 'adresse', 'ville', 'code_postal',
-            'loyer_mensuel', 'caution', 'caution_mois', 'surface', 'nb_pieces',
+            'type_bien', 'loyer_mensuel', 'caution', 'caution_mois', 'surface', 'nb_pieces',
             'disponible', 'photo_principale', 'proprietaire'
         ]
         read_only_fields = ['proprietaire', 'caution']
         extra_kwargs = {
             'surface': {'required': False, 'allow_null': True},
+            'type_bien': {'required': True, 'allow_blank': False},
         }
     
     def validate_loyer_mensuel(self, value):
@@ -127,6 +128,11 @@ class AppartementCreateUpdateSerializer(serializers.ModelSerializer):
     def validate_surface(self, value):
         if value and value > 1000:
             raise serializers.ValidationError("Surface trop grande (max 1000m²)")
+        return value
+
+    def validate_type_bien(self, value):
+        if not value:
+            raise serializers.ValidationError("Le type de bien est obligatoire avant publication.")
         return value
 
     def create(self, validated_data):
@@ -154,6 +160,16 @@ class LocationListSerializer(serializers.ModelSerializer):
     appartement_slug = serializers.SlugField(source='appartement.slug', read_only=True)
     appartement_proprietaire_id = serializers.UUIDField(source='appartement.proprietaire_id', read_only=True, allow_null=True)
     locataire_nom = serializers.CharField(source='locataire.username', read_only=True, allow_null=True)
+    bail_pdf_url = serializers.SerializerMethodField()
+
+    @extend_schema_field(CharField(allow_null=True))
+    def get_bail_pdf_url(self, obj):
+        if not getattr(obj, 'bail_pdf', None):
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.bail_pdf.url)
+        return obj.bail_pdf.url
     
     class Meta:
         model = Location
@@ -163,7 +179,7 @@ class LocationListSerializer(serializers.ModelSerializer):
             'locataire_id', 'locataire_nom', 'nom_locataire',
             'email_locataire', 'telephone_locataire',
             'date_debut', 'date_fin', 'statut', 'montant_total',
-            'date_reservation'
+            'date_reservation', 'bail_pdf_url'
         ]
 
 
@@ -174,11 +190,21 @@ class LocationDetailSerializer(serializers.ModelSerializer):
     appartement = AppartementListSerializer(read_only=True)
     locataire = UserSerializer(read_only=True)
     duree_sejour = serializers.SerializerMethodField()
+    bail_pdf_url = serializers.SerializerMethodField()
     
     @extend_schema_field(serializers.IntegerField())
     def get_duree_sejour(self, obj):
         """Calcul de la durée du séjour en jours"""
         return (obj.date_fin - obj.date_debut).days
+
+    @extend_schema_field(CharField(allow_null=True))
+    def get_bail_pdf_url(self, obj):
+        if not getattr(obj, 'bail_pdf', None):
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.bail_pdf.url)
+        return obj.bail_pdf.url
     
     class Meta:
         model = Location
@@ -187,7 +213,7 @@ class LocationDetailSerializer(serializers.ModelSerializer):
             'email_locataire', 'telephone_locataire',
             'date_debut', 'date_fin', 'statut', 'date_reservation',
             'date_confirmation', 'date_paiement', 'montant_total',
-            'commission', 'notes', 'duree_sejour'
+            'commission', 'notes', 'duree_sejour', 'bail_pdf_url', 'date_generation_bail'
         ]
 
 
@@ -444,3 +470,28 @@ class UpdatePlanSerializer(serializers.Serializer):
     Sérialiseur pour la mise à jour du plan utilisateur
     """
     plan = serializers.ChoiceField(choices=['free', 'premium'])
+
+
+class DossierLocataireSerializer(serializers.ModelSerializer):
+    """
+    Sérialiseur pour les dossiers des locataires
+    """
+    piece_identite_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DossierLocataire
+        fields = [
+            'id', 'location', 'nom', 'prenom', 'email', 'telephone',
+            'profession', 'date_naissance', 'piece_identite', 'piece_identite_url',
+            'garant_nom', 'garant_email', 'garant_telephone', 'date_creation'
+        ]
+        read_only_fields = ['id', 'date_creation']
+
+    def get_piece_identite_url(self, obj):
+        """Retourner l'URL de la pièce d'identité"""
+        if obj.piece_identite:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.piece_identite.url)
+            return obj.piece_identite.url
+        return None

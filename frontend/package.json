@@ -2,6 +2,7 @@
   "name": "residance-frontend",
   "version": "0.1.0",
   "private": true,
+  "proxy": "http://localhost:8000",
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",
     "@testing-library/dom": "^10.4.1",

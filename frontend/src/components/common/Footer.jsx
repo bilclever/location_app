@@ -33,8 +33,8 @@ const Footer = () => {
 
           <div className="footer-column">
             <h4 className="footer-title">Contact</h4>
-            <p className="footer-link">contact@residance.fr</p>
-            <p className="footer-link">01 23 45 67 89</p>
+            <p className="footer-link">sanoussibilale2gmail.com</p>
+            <p className="footer-link">+228 70 21 49 09</p>
             <p className="footer-link">
               123 rue de l'Exemple<br />
               75001 Paris

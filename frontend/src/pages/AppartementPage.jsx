@@ -16,6 +16,9 @@ const AppartementPage = () => {
     page: searchParams.get('page') || 1,
   });
 
+  const appartements = data?.results || [];
+  const shouldShowError = Boolean(error) && appartements.length === 0;
+
   const handleFilterChange = (newFilters) => {
     setSearchParams({ ...newFilters, page: 1 });
   };
@@ -27,11 +30,11 @@ const AppartementPage = () => {
 
   return (
     <div className="page listing">
-      <section className="section section-surface">
+      <section className="section">
         <div className="container">
           <AppartementFilters filters={activeFilters} onFilterChange={handleFilterChange} />
 
-          {data && data.results.length === 0 && !isLoading && (
+          {data && appartements.length === 0 && !isLoading && (
             <div style={{ textAlign: 'center', padding: '3rem' }}>
               <p>Aucun appartement ne correspond a vos criteres.</p>
               <button
@@ -45,22 +48,22 @@ const AppartementPage = () => {
 
           {isLoading && <LoadingSpinner fullPage />}
 
-          {error && (
+          {shouldShowError && (
             <div className="alert alert-error">
               Une erreur est survenue lors du chargement des appartements.
             </div>
           )}
 
-          {data && data.results.length > 0 && (
+          {appartements.length > 0 && (
             <div className="carousel-overflow-wide">
-              <AppartementCarousel appartements={data.results} />
+              <AppartementCarousel appartements={appartements} />
             </div>
           )}
 
-          {data && data.results.length > 0 && (
+          {appartements.length > 0 && (
             <Pagination
-              currentPage={data.current_page}
-              totalPages={data.total_pages}
+              currentPage={data.currentPage}
+              totalPages={data.totalPages}
               onPageChange={handlePageChange}
             />
           )}

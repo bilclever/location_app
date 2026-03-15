@@ -39,6 +39,23 @@ class PremiumBienSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'category_label', 'appartement_type_label']
 
+    def validate(self, attrs):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+
+        appartement_type = attrs.get('appartement_type') or getattr(self.instance, 'appartement_type', None)
+        if not appartement_type:
+            raise serializers.ValidationError({'appartement_type': 'Le type de bien est obligatoire avant publication.'})
+
+        if user and getattr(appartement_type, 'owner_id', None) != user.id:
+            raise serializers.ValidationError({'appartement_type': 'Type de bien invalide pour cet utilisateur.'})
+
+        category = attrs.get('category')
+        if category is not None and user and getattr(category, 'owner_id', None) != user.id:
+            raise serializers.ValidationError({'category': 'Categorie invalide pour cet utilisateur.'})
+
+        return attrs
+
 
 class PremiumLocataireSerializer(serializers.ModelSerializer):
     piece_identite = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -101,6 +118,20 @@ class PremiumBailSerializer(serializers.ModelSerializer):
     def get_locataire_nom(self, obj):
         return f"{obj.locataire.nom} {obj.locataire.prenoms}".strip()
 
+    def validate(self, attrs):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        bien = attrs.get('bien')
+        locataire = attrs.get('locataire')
+
+        if bien is not None and user and getattr(bien, 'owner_id', None) != user.id:
+            raise serializers.ValidationError({'bien': 'Bien invalide pour cet utilisateur.'})
+
+        if locataire is not None and user and getattr(locataire, 'owner_id', None) != user.id:
+            raise serializers.ValidationError({'locataire': 'Locataire invalide pour cet utilisateur.'})
+
+        return attrs
+
 
 class PremiumComptableEcritureSerializer(serializers.ModelSerializer):
     class Meta:
@@ -111,6 +142,23 @@ class PremiumComptableEcritureSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'source']
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        bien = attrs.get('bien')
+        bail = attrs.get('bail')
+
+        if bien is not None and user and getattr(bien, 'owner_id', None) != user.id:
+            raise serializers.ValidationError({'bien': 'Bien invalide pour cet utilisateur.'})
+
+        if bail is not None and user and getattr(bail, 'owner_id', None) != user.id:
+            raise serializers.ValidationError({'bail': 'Bail invalide pour cet utilisateur.'})
+
+        if bien is not None and bail is not None and getattr(bail, 'bien_id', None) != bien.id:
+            raise serializers.ValidationError({'bail': 'Le bail selectionne ne correspond pas au bien.'})
+
+        return attrs
 
 
 class PremiumPaymentAuditLogSerializer(serializers.ModelSerializer):
@@ -127,6 +175,16 @@ class PremiumPaymentSerializer(serializers.ModelSerializer):
             'montant', 'statut', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        bail = attrs.get('bail')
+
+        if bail is not None and user and getattr(bail, 'owner_id', None) != user.id:
+            raise serializers.ValidationError({'bail': 'Bail invalide pour cet utilisateur.'})
+
+        return attrs
 
 
 class PremiumDashboardSerializer(serializers.Serializer):
