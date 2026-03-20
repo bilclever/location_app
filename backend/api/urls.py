@@ -9,7 +9,7 @@ from .views import (
     LocationViewSet,
     
     # Auth
-    RegisterView, LoginView, LogoutView, ProfileView,
+    RegisterView, VerifyRegisterOTPView, LoginView, VerifyLoginOTPView, LogoutView, ProfileView,
     ChangePasswordView, UpdatePlanView,
     
     # Favoris
@@ -53,7 +53,9 @@ router.register(r'premium/payments', PremiumPaymentViewSet, basename='premium-pa
 # URLs d'authentification
 auth_patterns = [
     path('register/', RegisterView.as_view(), name='auth_register'),
+    path('register/verify-otp/', VerifyRegisterOTPView.as_view(), name='auth_register_verify_otp'),
     path('login/', LoginView.as_view(), name='auth_login'),
+    path('login/verify-otp/', VerifyLoginOTPView.as_view(), name='auth_login_verify_otp'),
     path('logout/', LogoutView.as_view(), name='auth_logout'),
     path('profile/', ProfileView.as_view(), name='auth_profile'),
     path('change-password/', ChangePasswordView.as_view(), name='auth_change_password'),

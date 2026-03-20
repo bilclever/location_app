@@ -7,6 +7,46 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def send_login_otp_email(email, otp_code):
+    """Envoie un code OTP de connexion par email."""
+    subject = 'Code de connexion Residance'
+    message = (
+        "Bonjour,\n\n"
+        f"Votre code OTP de connexion est : {otp_code}\n"
+        "Ce code est valide pendant 10 minutes.\n\n"
+        "Si vous n'etes pas a l'origine de cette demande, ignorez cet email.\n\n"
+        "L'equipe Residance"
+    )
+
+    send_mail(
+        subject,
+        message,
+        settings.DEFAULT_FROM_EMAIL,
+        [email],
+        fail_silently=False,
+    )
+
+
+def send_register_otp_email(email, otp_code):
+    """Envoie un code OTP de verification d'inscription par email."""
+    subject = 'Code de verification inscription Residance'
+    message = (
+        "Bonjour,\n\n"
+        f"Votre code OTP d'inscription est : {otp_code}\n"
+        "Ce code est valide pendant 10 minutes.\n\n"
+        "Si vous n'etes pas a l'origine de cette demande, ignorez cet email.\n\n"
+        "L'equipe Residance"
+    )
+
+    send_mail(
+        subject,
+        message,
+        settings.DEFAULT_FROM_EMAIL,
+        [email],
+        fail_silently=False,
+    )
+
+
 def send_bail_generated_email(location, bail_data, pdf_bytes, filename):
     """
     Envoie le bail génere en piece jointe au locataire.

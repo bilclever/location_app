@@ -9,7 +9,29 @@ export const authService = {
 
   // POST /api/auth/login/
   async login(credentials) {
-    const response = await api.post('/auth/login/', credentials);
+    const normalizedEmail = (credentials?.email || credentials?.username || '').trim().toLowerCase();
+    const response = await api.post('/auth/login/', {
+      email: normalizedEmail,
+      password: credentials?.password || '',
+    });
+    return response.data;
+  },
+
+  // POST /api/auth/login/verify-otp/
+  async verifyEmailOtp(payload) {
+    const response = await api.post('/auth/login/verify-otp/', {
+      email: (payload?.email || '').trim().toLowerCase(),
+      otp_code: (payload?.otp_code || '').trim(),
+    });
+    return response.data;
+  },
+
+  // POST /api/auth/register/verify-otp/
+  async verifyRegisterOtp(payload) {
+    const response = await api.post('/auth/register/verify-otp/', {
+      email: (payload?.email || '').trim().toLowerCase(),
+      otp_code: (payload?.otp_code || '').trim(),
+    });
     return response.data;
   },
 

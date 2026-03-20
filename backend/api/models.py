@@ -143,6 +143,56 @@ class User(AbstractBaseUser, PermissionsMixin):
         return None
 
 
+class EmailLoginOTP(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='email_login_otps',
+        verbose_name='Utilisateur'
+    )
+    email = models.EmailField(verbose_name='Email cible')
+    otp_hash = models.CharField(max_length=64, verbose_name='Hash OTP')
+    expires_at = models.DateTimeField(verbose_name='Expire a')
+    attempt_count = models.IntegerField(default=0, verbose_name='Nombre de tentatives')
+    is_used = models.BooleanField(default=False, verbose_name='Code utilise')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Date de creation')
+
+    class Meta:
+        verbose_name = 'OTP connexion email'
+        verbose_name_plural = 'OTPs connexion email'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['email', 'is_used']),
+            models.Index(fields=['expires_at']),
+        ]
+
+    def __str__(self):
+        return f"OTP login {self.email} ({'used' if self.is_used else 'active'})"
+
+
+class EmailRegisterOTP(models.Model):
+    email = models.EmailField(verbose_name='Email cible')
+    username = models.CharField(max_length=150, verbose_name='Nom utilisateur propose')
+    password_hash = models.CharField(max_length=128, verbose_name='Mot de passe hache')
+    otp_hash = models.CharField(max_length=64, verbose_name='Hash OTP')
+    expires_at = models.DateTimeField(verbose_name='Expire a')
+    attempt_count = models.IntegerField(default=0, verbose_name='Nombre de tentatives')
+    is_used = models.BooleanField(default=False, verbose_name='Code utilise')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Date de creation')
+
+    class Meta:
+        verbose_name = 'OTP inscription email'
+        verbose_name_plural = 'OTPs inscription email'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['email', 'is_used']),
+            models.Index(fields=['expires_at']),
+        ]
+
+    def __str__(self):
+        return f"OTP register {self.email} ({'used' if self.is_used else 'active'})"
+
+
 class Appartement(models.Model):
     BIEN_TYPE_CHOICES = [
         ('APPARTEMENT', 'Appartement'),
@@ -158,8 +208,8 @@ class Appartement(models.Model):
         on_delete=models.CASCADE,
         related_name='appartements_proprietaire',  # Updated related_name to avoid conflict
         verbose_name="Propriétaire",
-        null=True,
-        blank=True
+        null=False,
+        blank=False
     )
     bien = models.ForeignKey(
         'PremiumBien',

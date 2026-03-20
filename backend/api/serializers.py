@@ -1,11 +1,19 @@
 from rest_framework import serializers
 from .models import (
-    User, Appartement, Photo, Location, Favori, DossierLocataire
+    User, Appartement, Photo, Location, Favori, DossierLocataire, EmailLoginOTP, EmailRegisterOTP
 )
 from decimal import Decimal
 from django.utils import timezone
+from django.conf import settings
+from django.contrib.auth import authenticate
+from django.contrib.auth.hashers import make_password
+from datetime import timedelta
+import hashlib
+import random
+from uuid import uuid4
 from drf_spectacular.utils import extend_schema_field
 from rest_framework.fields import CharField
+from .utils import send_login_otp_email, send_register_otp_email
 
 
 
@@ -403,33 +411,222 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     Sérialiseur pour l'inscription des utilisateurs
     """
     password = serializers.CharField(write_only=True)
+    username = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = User
         fields = ['id', 'email', 'username', 'password', 'telephone', 'adresse', 'photo_profil']
 
+    def validate_email(self, value):
+        return value.strip().lower()
+
+    def _generate_unique_username(self, email):
+        base_username = email.split('@')[0][:100] or 'user'
+        candidate = base_username
+
+        while User.objects.filter(username__iexact=candidate).exists():
+            suffix = uuid4().hex[:6]
+            candidate = f"{base_username[:140]}_{suffix}"[:150]
+
+        return candidate
+
     def create(self, validated_data):
-        # Crée un utilisateur avec un mot de passe haché
         password = validated_data.pop('password')
-        user = User(**validated_data)
-        user.set_password(password)
-        user.save()
-        return user
+        email = validated_data.pop('email')
+        username = (validated_data.pop('username', '') or '').strip()
+
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError({'email': "Un compte existe deja avec cet email."})
+
+        if not username:
+            username = self._generate_unique_username(email)
+        elif User.objects.filter(username__iexact=username).exists():
+            raise serializers.ValidationError({'username': "Ce nom d'utilisateur est deja utilise."})
+
+        EmailRegisterOTP.objects.filter(email__iexact=email, is_used=False).update(is_used=True)
+
+        otp_code = f"{random.randint(0, 999999):06d}"
+        otp_hash = hashlib.sha256(
+            f"register:{email}:{otp_code}:{settings.SECRET_KEY}".encode('utf-8')
+        ).hexdigest()
+
+        EmailRegisterOTP.objects.create(
+            email=email,
+            username=username,
+            password_hash=make_password(password),
+            otp_hash=otp_hash,
+            expires_at=timezone.now() + timedelta(minutes=10),
+        )
+
+        try:
+            send_register_otp_email(email, otp_code)
+        except Exception:
+            raise serializers.ValidationError({
+                'detail': "Impossible d'envoyer le code OTP d'inscription pour le moment."
+            })
+
+        return {
+            'email': email,
+            'requires_otp': True,
+            'message': "Un code OTP d'inscription a ete envoye a votre adresse email.",
+        }
+
+
+class VerifyRegisterOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp_code = serializers.CharField(min_length=6, max_length=6)
+
+    def validate(self, data):
+        normalized_email = data['email'].strip().lower()
+        otp_code = data['otp_code'].strip()
+
+        otp_entry = EmailRegisterOTP.objects.filter(
+            email=normalized_email,
+            is_used=False,
+        ).order_by('-created_at').first()
+
+        if not otp_entry:
+            raise serializers.ValidationError({'detail': "Aucun OTP d'inscription actif trouve. Veuillez recommencer."})
+
+        if otp_entry.expires_at <= timezone.now():
+            otp_entry.is_used = True
+            otp_entry.save(update_fields=['is_used'])
+            raise serializers.ValidationError({'detail': "Le code OTP d'inscription a expire. Veuillez demander un nouveau code."})
+
+        if otp_entry.attempt_count >= 5:
+            otp_entry.is_used = True
+            otp_entry.save(update_fields=['is_used'])
+            raise serializers.ValidationError({'detail': 'Trop de tentatives. Veuillez recommencer votre inscription.'})
+
+        expected_hash = hashlib.sha256(
+            f"register:{normalized_email}:{otp_code}:{settings.SECRET_KEY}".encode('utf-8')
+        ).hexdigest()
+
+        if expected_hash != otp_entry.otp_hash:
+            otp_entry.attempt_count += 1
+            if otp_entry.attempt_count >= 5:
+                otp_entry.is_used = True
+                otp_entry.save(update_fields=['attempt_count', 'is_used'])
+            else:
+                otp_entry.save(update_fields=['attempt_count'])
+            raise serializers.ValidationError({'otp_code': 'Code OTP invalide.'})
+
+        if User.objects.filter(email__iexact=normalized_email).exists():
+            otp_entry.is_used = True
+            otp_entry.save(update_fields=['is_used'])
+            raise serializers.ValidationError({'email': 'Ce compte existe deja.'})
+
+        username = otp_entry.username
+        if User.objects.filter(username__iexact=username).exists():
+            username = f"{username[:140]}_{uuid4().hex[:6]}"[:150]
+
+        user = User.objects.create_user(
+            email=normalized_email,
+            username=username,
+            password=None,
+        )
+        user.password = otp_entry.password_hash
+        user.save(update_fields=['password'])
+
+        otp_entry.is_used = True
+        otp_entry.attempt_count += 1
+        otp_entry.save(update_fields=['is_used', 'attempt_count'])
+
+        return {'user': user}
 
 
 class UserLoginSerializer(serializers.Serializer):
     """
-    Sérialiseur pour la connexion des utilisateurs
+    Sérialiseur pour demander un OTP de connexion par email
     """
-    email = serializers.EmailField()
+    email = serializers.EmailField(required=False)
+    username = serializers.CharField(required=False, write_only=True)
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        from django.contrib.auth import authenticate
-        user = authenticate(email=data['email'], password=data['password'])
-        if user and user.is_active:
-            return {'user': user}
-        raise serializers.ValidationError("Identifiants invalides ou utilisateur inactif.")
+        request = self.context.get('request')
+        raw_email = (data.get('email') or data.get('username') or '').strip()
+        if not raw_email:
+            raise serializers.ValidationError({'email': "L'email est requis pour se connecter."})
+
+        normalized_email = raw_email.lower()
+        user = authenticate(request=request, email=normalized_email, password=data['password'])
+        if not user or not user.is_active:
+            raise serializers.ValidationError("Identifiants invalides ou utilisateur inactif.")
+
+        # Invalider les anciens OTP non utilises pour cet utilisateur.
+        EmailLoginOTP.objects.filter(user=user, is_used=False).update(is_used=True)
+
+        otp_code = f"{random.randint(0, 999999):06d}"
+        otp_hash = hashlib.sha256(
+            f"{normalized_email}:{otp_code}:{settings.SECRET_KEY}".encode('utf-8')
+        ).hexdigest()
+
+        EmailLoginOTP.objects.create(
+            user=user,
+            email=normalized_email,
+            otp_hash=otp_hash,
+            expires_at=timezone.now() + timedelta(minutes=10),
+        )
+
+        try:
+            send_login_otp_email(normalized_email, otp_code)
+        except Exception:
+            raise serializers.ValidationError({
+                'detail': "Impossible d'envoyer le code OTP pour le moment."
+            })
+
+        return {
+            'email': normalized_email,
+            'requires_otp': True,
+            'message': 'Un code OTP a ete envoye a votre adresse email.',
+        }
+
+
+class VerifyLoginOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp_code = serializers.CharField(min_length=6, max_length=6)
+
+    def validate(self, data):
+        normalized_email = data['email'].strip().lower()
+        otp_code = data['otp_code'].strip()
+
+        otp_entry = EmailLoginOTP.objects.filter(
+            email=normalized_email,
+            is_used=False,
+        ).order_by('-created_at').first()
+
+        if not otp_entry:
+            raise serializers.ValidationError({'detail': 'Aucun code OTP actif trouve. Veuillez recommencer la connexion.'})
+
+        if otp_entry.expires_at <= timezone.now():
+            otp_entry.is_used = True
+            otp_entry.save(update_fields=['is_used'])
+            raise serializers.ValidationError({'detail': 'Le code OTP a expire. Veuillez demander un nouveau code.'})
+
+        if otp_entry.attempt_count >= 5:
+            otp_entry.is_used = True
+            otp_entry.save(update_fields=['is_used'])
+            raise serializers.ValidationError({'detail': 'Trop de tentatives. Veuillez demander un nouveau code.'})
+
+        expected_hash = hashlib.sha256(
+            f"{normalized_email}:{otp_code}:{settings.SECRET_KEY}".encode('utf-8')
+        ).hexdigest()
+
+        if expected_hash != otp_entry.otp_hash:
+            otp_entry.attempt_count += 1
+            if otp_entry.attempt_count >= 5:
+                otp_entry.is_used = True
+                otp_entry.save(update_fields=['attempt_count', 'is_used'])
+            else:
+                otp_entry.save(update_fields=['attempt_count'])
+            raise serializers.ValidationError({'otp_code': 'Code OTP invalide.'})
+
+        otp_entry.is_used = True
+        otp_entry.attempt_count += 1
+        otp_entry.save(update_fields=['is_used', 'attempt_count'])
+
+        return {'user': otp_entry.user}
 
 
 class UserProfileSerializer(serializers.ModelSerializer):

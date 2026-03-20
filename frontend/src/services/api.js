@@ -58,6 +58,17 @@ const isPublicAppartementRequest = (config) => {
   return /(^|\/)appartements(\/|$)/.test(path);
 };
 
+const isPublicAuthRequest = (config) => {
+  const method = (config?.method || 'get').toLowerCase();
+  const path = normalizePath(config?.url || '');
+
+  if (method !== 'post') {
+    return false;
+  }
+
+  return /(^|\/)auth\/(login|login\/verify-otp|register|register\/verify-otp)(\/|$)/.test(path);
+};
+
 // Intercepteur pour ajouter le token
 api.interceptors.request.use(
   (config) => {
@@ -80,7 +91,7 @@ api.interceptors.request.use(
       }
     }
 
-    if (isPublicAppartementRequest(config)) {
+    if (isPublicAppartementRequest(config) || isPublicAuthRequest(config)) {
       if (config.headers?.Authorization) {
         delete config.headers.Authorization;
       }
@@ -107,7 +118,10 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    if ((error.response?.status === 401 || error.response?.status === 403) && isPublicAppartementRequest(originalRequest)) {
+    if (
+      (error.response?.status === 401 || error.response?.status === 403)
+      && (isPublicAppartementRequest(originalRequest) || isPublicAuthRequest(originalRequest))
+    ) {
       return Promise.reject(error);
     }
 

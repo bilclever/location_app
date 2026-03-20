@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
+from urllib.parse import parse_qs, unquote, urlparse
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -83,16 +84,56 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST'),
-        'PORT': config('DB_PORT'),
+# Enable an easy development fallback to SQLite. By default we enable SQLite when
+# DEBUG=True (so you don't need to have a working remote Postgres during dev).
+# Set USE_SQLITE=False in your environment to force PostgreSQL even in DEBUG mode.
+USE_SQLITE = config('USE_SQLITE', default=DEBUG, cast=bool)
+USE_TRANSACTION_POOLER = config('USE_TRANSACTION_POOLER', default=True, cast=bool)
+TRANSACTION_POOLER_URL = config(
+    'SUPABASE_TRANSACTION_POOLER_URL',
+    default=config('DATABASE_URL', default='')
+)
+
+if USE_SQLITE:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+else:
+    db_config = {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME', default='postgres'),
+        'USER': config('DB_USER', default=''),
+        'PASSWORD': config('DB_PASSWORD', default=''),
+        'HOST': config('DB_HOST', default=''),
+        'PORT': config('DB_PORT', default='6543'),
+    }
+
+    if USE_TRANSACTION_POOLER and TRANSACTION_POOLER_URL:
+        parsed_db_url = urlparse(TRANSACTION_POOLER_URL)
+        query_params = parse_qs(parsed_db_url.query)
+        sslmode = query_params.get('sslmode', [None])[0] or config('DB_SSLMODE', default='require')
+
+        db_config.update({
+            'NAME': parsed_db_url.path.lstrip('/') or db_config['NAME'],
+            'USER': unquote(parsed_db_url.username or db_config['USER']),
+            'PASSWORD': unquote(parsed_db_url.password or db_config['PASSWORD']),
+            'HOST': parsed_db_url.hostname or db_config['HOST'],
+            'PORT': str(parsed_db_url.port or db_config['PORT']),
+            'OPTIONS': {
+                'sslmode': sslmode,
+                'connect_timeout': config('DB_CONNECT_TIMEOUT', default=10, cast=int),
+            },
+            # Transaction poolers should not keep long-lived backend connections.
+            'CONN_MAX_AGE': config('DB_CONN_MAX_AGE', default=0, cast=int),
+        })
+
+        # Required with transaction pooling to avoid server-side cursor issues.
+        DISABLE_SERVER_SIDE_CURSORS = config('DISABLE_SERVER_SIDE_CURSORS', default=True, cast=bool)
+
+    DATABASES = {'default': db_config}
 
 
 # Password validation
@@ -188,6 +229,12 @@ SIMPLE_JWT = {
 
 # Utilisation d'un modèle utilisateur personnalisé
 AUTH_USER_MODEL = 'api.User'
+
+AUTHENTICATION_BACKENDS = [
+    'api.auth_backends.EmailAuthBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 # Supabase Configuration
 SUPABASE_URL = config('SUPABASE_URL', default='https://gabwjrfyzctcsnmgezuv.supabase.co')
 SUPABASE_JWT_SECRET = config('SUPABASE_JWT_SECRET', default='')

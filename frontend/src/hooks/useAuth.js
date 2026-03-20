@@ -233,6 +233,11 @@ export const useAuth = () => {
     (credentials) => authService.login(credentials),
     {
       onSuccess: (data) => {
+        if (data?.requires_otp) {
+          toast.success(data.message || 'Code OTP envoye par email');
+          return;
+        }
+
         localStorage.setItem('access_token', data.access);
         localStorage.setItem('refresh_token', data.refresh);
         queryClient.setQueryData('user', adapters.userProfile(data.user));
@@ -246,10 +251,33 @@ export const useAuth = () => {
     }
   );
 
+  const verifyEmailOtpMutation = useMutation(
+    (payload) => authService.verifyEmailOtp(payload),
+    {
+      onSuccess: (data) => {
+        localStorage.setItem('access_token', data.access);
+        localStorage.setItem('refresh_token', data.refresh);
+        queryClient.setQueryData('user', adapters.userProfile(data.user));
+        toast.success('Connexion réussie');
+        navigate('/');
+      },
+      onError: (error) => {
+        const detail = error?.response?.data;
+        const message = detail?.detail || detail?.otp_code?.[0] || 'OTP invalide';
+        toast.error(message);
+      },
+    }
+  );
+
   const registerMutation = useMutation(
     (userData) => authService.register(userData),
     {
       onSuccess: (data) => {
+        if (data?.requires_otp) {
+          toast.success(data.message || 'Code OTP envoye pour finaliser l\'inscription');
+          return;
+        }
+
         localStorage.setItem('access_token', data.access);
         localStorage.setItem('refresh_token', data.refresh);
         queryClient.setQueryData('user', adapters.userProfile(data.user));
@@ -270,6 +298,24 @@ export const useAuth = () => {
         }
         toast.error(message);
         throw error;
+      },
+    }
+  );
+
+  const verifyRegisterOtpMutation = useMutation(
+    (payload) => authService.verifyRegisterOtp(payload),
+    {
+      onSuccess: (data) => {
+        localStorage.setItem('access_token', data.access);
+        localStorage.setItem('refresh_token', data.refresh);
+        queryClient.setQueryData('user', adapters.userProfile(data.user));
+        toast.success('Inscription réussie');
+        navigate('/');
+      },
+      onError: (error) => {
+        const detail = error?.response?.data;
+        const message = detail?.detail || detail?.otp_code?.[0] || detail?.email?.[0] || 'OTP invalide';
+        toast.error(message);
       },
     }
   );
@@ -363,8 +409,12 @@ export const useAuth = () => {
     completeOAuthLogin,
     login: loginMutation.mutate,
     loginAsync: loginMutation.mutateAsync,
+    verifyEmailOtp: verifyEmailOtpMutation.mutate,
+    verifyEmailOtpAsync: verifyEmailOtpMutation.mutateAsync,
     register: registerMutation.mutate,
     registerAsync: registerMutation.mutateAsync,
+    verifyRegisterOtp: verifyRegisterOtpMutation.mutate,
+    verifyRegisterOtpAsync: verifyRegisterOtpMutation.mutateAsync,
     logout: logoutMutation.mutate,
     updateProfile: updateProfileMutation.mutate,
     updateProfileAsync: updateProfileMutation.mutateAsync,
@@ -373,7 +423,9 @@ export const useAuth = () => {
     updatePlan: updatePlanMutation.mutate,
     updatePlanAsync: updatePlanMutation.mutateAsync,
     isLoggingIn: loginMutation.isLoading,
+    isVerifyingEmailOtp: verifyEmailOtpMutation.isLoading,
     isRegistering: registerMutation.isLoading,
+    isVerifyingRegisterOtp: verifyRegisterOtpMutation.isLoading,
     isLoggingOut: logoutMutation.isLoading,
     isUpdatingProfile: updateProfileMutation.isLoading,
     isChangingPassword: changePasswordMutation.isLoading,

@@ -3,6 +3,7 @@ from jwt import PyJWKClient
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import authentication, exceptions
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 User = get_user_model()
 
@@ -56,7 +57,17 @@ class SupabaseAuthentication(authentication.BaseAuthentication):
 
         try:
             payload = self._decode_supabase_jwt(token)
+        except (exceptions.AuthenticationFailed, jwt.DecodeError, jwt.InvalidSignatureError):
+            # Si la validation Supabase échoue, essayer simplejwt (token backend)
+            jwt_auth = JWTAuthentication()
+            try:
+                validated_token = jwt_auth.get_validated_token(token)
+                user = jwt_auth.get_user(validated_token)
+                return (user, None)
+            except Exception:
+                raise exceptions.AuthenticationFailed('Erreur de décodage du jeton: Signature verification failed')
 
+        try:
             # 'sub' est l'ID unique de l'utilisateur chez Supabase/Google
             user_id = payload.get('sub')
             if not user_id:

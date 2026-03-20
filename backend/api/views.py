@@ -20,6 +20,7 @@ from .models import (
 from .serializers import (
     # Utilisateurs
     UserRegistrationSerializer, UserLoginSerializer,
+    VerifyLoginOTPSerializer, VerifyRegisterOTPSerializer,
     UserProfileSerializer, UserUpdateSerializer,
     ChangePasswordSerializer, LogoutSerializer,
     UpdatePlanSerializer,
@@ -67,27 +68,22 @@ class RegisterView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
 
         if serializer.is_valid():
-            user = serializer.save()
-
-            from rest_framework_simplejwt.tokens import RefreshToken
-            refresh = RefreshToken.for_user(user)
-
+            register_payload = serializer.save()
             return Response({
-                'user': UserProfileSerializer(user).data,
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-                'message': 'Inscription réussie'
-            }, status=status.HTTP_201_CREATED)
+                'requires_otp': True,
+                'email': register_payload['email'],
+                'message': register_payload['message'],
+            }, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class LoginView(generics.GenericAPIView):
+class VerifyRegisterOTPView(generics.GenericAPIView):
     """
-    Connexion utilisateur
+    Valider OTP d'inscription puis creer le compte et la session JWT
     """
     permission_classes = [AllowAny]
-    serializer_class = UserLoginSerializer
+    serializer_class = VerifyRegisterOTPSerializer
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -102,7 +98,53 @@ class LoginView(generics.GenericAPIView):
                 'user': UserProfileSerializer(user).data,
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
-                'message': 'Connexion réussie'
+                'message': 'Inscription reussie',
+            }, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LoginView(generics.GenericAPIView):
+    """
+    Demande OTP pour connexion email
+    """
+    permission_classes = [AllowAny]
+    serializer_class = UserLoginSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+
+        if serializer.is_valid():
+            return Response({
+                'requires_otp': True,
+                'email': serializer.validated_data['email'],
+                'message': serializer.validated_data['message'],
+            })
+
+        return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
+
+
+class VerifyLoginOTPView(generics.GenericAPIView):
+    """
+    Valider OTP puis creer la session JWT
+    """
+    permission_classes = [AllowAny]
+    serializer_class = VerifyLoginOTPSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+
+        if serializer.is_valid():
+            user = serializer.validated_data['user']
+
+            from rest_framework_simplejwt.tokens import RefreshToken
+            refresh = RefreshToken.for_user(user)
+
+            return Response({
+                'user': UserProfileSerializer(user).data,
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+                'message': 'Connexion reussie',
             })
 
         return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
