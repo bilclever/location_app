@@ -1,12 +1,45 @@
 // Adaptateurs pour convertir les données API vers format frontend
 const MEDIA_BASE_URL = process.env.REACT_APP_MEDIA_URL ||
   (process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace(/\/api\/?$/, '') : '');
+const NORMALIZED_MEDIA_BASE_URL = MEDIA_BASE_URL.replace(/\/+$/, '');
+
+const shouldStripMediaPrefix = /\/media\/?$/i.test(NORMALIZED_MEDIA_BASE_URL);
+
+const stripLeadingMediaPrefix = (path) => {
+  if (!shouldStripMediaPrefix || !path) return path;
+  return path.replace(/^\/?media\//i, '');
+};
+
+const joinMediaBase = (path) => {
+  const normalizedPath = stripLeadingMediaPrefix(path || '');
+  return `${NORMALIZED_MEDIA_BASE_URL}${normalizedPath.startsWith('/') ? '' : '/'}${normalizedPath}`;
+};
 
 const withMediaBase = (url) => {
   if (!url || typeof url !== 'string') return url;
-  if (/^https?:\/\//i.test(url)) return url;
-  if (!MEDIA_BASE_URL) return url;
-  return `${MEDIA_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+  const trimmedUrl = url.trim();
+  if (!trimmedUrl) return trimmedUrl;
+
+  if (/^https?:\/\//i.test(trimmedUrl)) {
+    if (!NORMALIZED_MEDIA_BASE_URL) return trimmedUrl;
+
+    try {
+      const parsedAbsoluteUrl = new URL(trimmedUrl);
+      const isLocalHost = ['localhost', '127.0.0.1', '0.0.0.0'].includes(parsedAbsoluteUrl.hostname);
+      const pointsToMediaPath = /^\/media\//i.test(parsedAbsoluteUrl.pathname);
+
+      if (isLocalHost || pointsToMediaPath) {
+        return joinMediaBase(`${parsedAbsoluteUrl.pathname}${parsedAbsoluteUrl.search}`);
+      }
+    } catch (_error) {
+      return trimmedUrl;
+    }
+
+    return trimmedUrl;
+  }
+
+  if (!NORMALIZED_MEDIA_BASE_URL) return trimmedUrl;
+  return joinMediaBase(trimmedUrl);
 };
 
 export const adapters = {
