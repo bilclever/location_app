@@ -35,7 +35,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     """
     Modèle utilisateur personnalisé pour Supabase Auth
     """
-    id = models.UUIDField(primary_key=True, editable=False)  # L'ID venant de Supabase
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)  # L'ID venant de Supabase
     email = models.EmailField(unique=True, verbose_name="Email")
     username = models.CharField(max_length=150, unique=True, verbose_name="Nom d'utilisateur")
     first_name = models.CharField(max_length=30, blank=True, verbose_name="Prénom")
